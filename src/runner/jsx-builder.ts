@@ -8,6 +8,7 @@ const CORE_MODULES = [
   'geometry',
   'text',
   'japanese-text',
+  'aspect-ratio',
   'layout',
   'snapshot',
 ] as const;
