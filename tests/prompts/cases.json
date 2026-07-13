@@ -58,9 +58,9 @@
   {
     "id": "read-timeout-retry",
     "category": "timeout",
-    "prompt": "A read-only Illustrator inspection timed out and explicitly says safeToRetry true. Diagnose the app and continue safely.",
+    "prompt": "A read-only Illustrator inspection timed out while the host may still be processing it. Diagnose the app and continue safely.",
     "shouldTrigger": true,
-    "expectedBehaviors": ["Run doctor before retry", "Distinguish read timeout from mutation timeout"],
+    "expectedBehaviors": ["Wait for the host operation to settle", "Run doctor before retry", "Distinguish read timeout from mutation timeout"],
     "forbiddenBehaviors": ["Assume the document was mutated", "Start concurrent probes"]
   },
   {

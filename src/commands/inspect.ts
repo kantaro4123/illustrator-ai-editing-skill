@@ -5,13 +5,14 @@ export interface InspectCommandInput {
   targetPath: string;
   targetName: string;
   detail: 'compact' | 'full';
+  maxStyleCharacters?: number;
   paramsPath: string;
   resultPath: string;
 }
 
 export async function createInspectCommand(input: InspectCommandInput): Promise<{
   mutation: false;
-  params: { detail: 'compact' | 'full' };
+  params: { detail: 'compact' | 'full'; maxStyleCharacters: number };
   jsx: string;
 }> {
   const commandSource = await readFile(
@@ -20,7 +21,7 @@ export async function createInspectCommand(input: InspectCommandInput): Promise<
   );
   return {
     mutation: false,
-    params: { detail: input.detail },
+    params: { detail: input.detail, maxStyleCharacters: input.maxStyleCharacters ?? 1000 },
     jsx: await buildJsx({
       commandSource,
       paramsPath: input.paramsPath,

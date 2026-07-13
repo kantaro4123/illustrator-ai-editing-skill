@@ -16,7 +16,7 @@ import {
 } from '../contracts/result.js';
 import { createBackup } from '../safety/backup.js';
 import { fingerprintFile } from '../safety/backup.js';
-import { assertSaveAllowed, createTransactionManifest } from '../safety/manifest.js';
+import { assertSaveAllowed, createTransactionManifest, type DocumentRole } from '../safety/manifest.js';
 import { buildDoctorAppleScript } from '../platform/macos.js';
 import { buildComparisonInvocations } from '../render/compare.js';
 import { documentBoundsToPixels } from '../render/crop.js';
@@ -168,6 +168,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
         targetPath,
         targetName: basename(targetPath),
         detail,
+        maxStyleCharacters: numberOption(arguments_, 'maxStyleCharacters', 1000),
         paramsPath: files.paramsPath,
         resultPath: files.resultPath,
       }),
@@ -270,12 +271,14 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     const timeoutMs = numberOption(arguments_, 'timeout', 180) * 1000;
     const runId = randomUUID();
     const fingerprint = await fingerprintFile(targetPath);
-    const backup = await createBackup(targetPath);
+    const targetRole = (stringOption(arguments_, 'role') ?? 'working') as DocumentRole;
     const manifest = createTransactionManifest({
-      runId, targetPath, targetRole: 'working', targetFingerprint: fingerprint,
+      runId, targetPath, targetRole, targetFingerprint: fingerprint,
       reviewRound: Number(stringOption(arguments_, 'reviewRound') ?? '1'),
     });
-    manifest.backup = backup;
+    if (targetRole === 'reference') assertSaveAllowed(manifest, targetPath);
+    const backup = targetRole === 'working' ? await createBackup(targetPath) : undefined;
+    if (backup) manifest.backup = backup;
     assertSaveAllowed(manifest, targetPath);
     const lock = await acquireDocumentLock({
       rootDir: join(tmpdir(), 'illustrator-ai-locks'), documentPath: targetPath, runId, command: 'save',
@@ -293,7 +296,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
       return successResult({
         command: 'save', runId: executed.runId, document: documentIdentity(targetPath),
         data: executed.value,
-        artifacts: [{ kind: 'backup', path: backup.path, sha256: backup.backupSha256 }],
+        artifacts: backup ? [{ kind: 'backup', path: backup.path, sha256: backup.backupSha256 }] : [],
       });
     } finally {
       await releaseDocumentLock(lock, runId);

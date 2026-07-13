@@ -33,8 +33,8 @@ export class SerializedIllustratorExecutor {
               code: 'ILLUSTRATOR_UNRESPONSIVE',
               message: `Illustrator read produced no result within ${input.timeoutMs}ms.`,
               recoverable: true,
-              safeToRetry: true,
-              nextAction: 'Run illustrator-ai doctor before retrying the read.',
+              safeToRetry: false,
+              nextAction: 'Wait for the host operation to settle, then run illustrator-ai doctor before retrying.',
             }),
           );
         }

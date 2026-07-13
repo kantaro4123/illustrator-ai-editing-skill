@@ -50,4 +50,25 @@ describe('default CLI handlers', () => {
       data: { document: { path: source } },
     });
   });
+
+  test('refuses a reference save before contacting Illustrator', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'illustrator-cli-reference-'));
+    const source = join(root, 'reference.ai');
+    await writeFile(source, 'synthetic reference', 'utf8');
+    let contactedHost = false;
+    const handlers = createDefaultHandlers({
+      executableAvailable: async () => true,
+      runProcess: async () => {
+        contactedHost = true;
+        return { stdout: '' };
+      },
+    });
+    const result = await runCli(['save', source, '--role', 'reference', '--confirm'], handlers);
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: { code: 'REFERENCE_WRITE_FORBIDDEN', recoverable: false },
+    });
+    expect(contactedHost).toBe(false);
+  });
 });

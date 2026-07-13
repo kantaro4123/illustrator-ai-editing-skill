@@ -1,6 +1,7 @@
 // @command inspect
 var inspectParams = parseJsonFile(PARAMS_PATH);
 var inspectDocument = requireTargetDocument();
+var remainingStyleCharacters = inspectParams.maxStyleCharacters || 1000;
 
 function inspectBounds(value) {
   return [value[0], value[1], value[2], value[3]];
@@ -58,9 +59,8 @@ function styleSignature(run) {
 }
 
 function inspectStyleRuns(frame, fullDetail) {
-  if (!fullDetail || frame.characters.length === 0) {
-    return [styleRunAt(frame.textRange, 0, frame.characters.length)];
-  }
+  if (frame.characters.length === 0) return [];
+  if (!fullDetail) return [styleRunAt(frame.characters[0], 0, frame.characters.length)];
   var output = [];
   var current = null;
   var currentSignature = "";
@@ -118,6 +118,10 @@ for (inspectIndex = 0; inspectIndex < inspectDocument.layers.length; inspectInde
 
 for (inspectIndex = 0; inspectIndex < inspectDocument.textFrames.length; inspectIndex++) {
   var frame = inspectDocument.textFrames[inspectIndex];
+  var wantsFullStyle = inspectParams.detail === "full";
+  var hasFullStyleBudget = frame.characters.length <= remainingStyleCharacters;
+  var useFullStyle = wantsFullStyle && hasFullStyleBudget;
+  if (useFullStyle) remainingStyleCharacters -= frame.characters.length;
   inspection.textFrames.push({
     uuid: inspectUuid(frame),
     name: inspectName(frame),
@@ -128,7 +132,8 @@ for (inspectIndex = 0; inspectIndex < inspectDocument.textFrames.length; inspect
     locked: frame.locked,
     hidden: frame.hidden,
     overflow: inspectOverflow(frame),
-    styleRuns: inspectStyleRuns(frame, inspectParams.detail === "full")
+    styleRuns: inspectStyleRuns(frame, useFullStyle),
+    styleRunsTruncated: wantsFullStyle && !useFullStyle
   });
 }
 

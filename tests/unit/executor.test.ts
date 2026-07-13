@@ -47,7 +47,7 @@ describe('serialized Illustrator executor', () => {
     expect(calls).toBe(1);
   });
 
-  test('classifies a read-only timeout as safely retryable after diagnosis', async () => {
+  test('blocks read retry while the host operation may still be running', async () => {
     const executor = new SerializedIllustratorExecutor();
     await expect(
       executor.execute({
@@ -60,7 +60,7 @@ describe('serialized Illustrator executor', () => {
       }),
     ).rejects.toMatchObject({
       code: 'ILLUSTRATOR_UNRESPONSIVE',
-      safeToRetry: true,
+      safeToRetry: false,
     } satisfies Partial<IllustratorError>);
   });
 

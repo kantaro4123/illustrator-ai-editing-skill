@@ -3,6 +3,9 @@
   var PRIMARY_PATH = __PRIMARY_PATH__;
   var DECOY_PATH = __DECOY_PATH__;
   var RESULT_PATH = __RESULT_PATH__;
+  var PRIMARY_SVG_PATH = __PRIMARY_SVG_PATH__;
+  var previousInteractionLevel = app.userInteractionLevel;
+  app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
 
   function trace(stageValue) {
     var traceFile = new File(RESULT_PATH + ".stage");
@@ -12,14 +15,8 @@
     traceFile.close();
   }
 
-  function addPointText(documentValue, layer, nameValue, contentsValue, leftValue, topValue, sizeValue) {
-    var frame = layer.textFrames.add();
-    frame.name = nameValue;
-    frame.contents = contentsValue;
-    frame.left = leftValue;
-    frame.top = topValue;
-    frame.textRange.characterAttributes.size = sizeValue;
-    return frame;
+  function jsonString(value) {
+    return '"' + String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r/g, "\\r").replace(/\n/g, "\\n") + '"';
   }
 
   function saveDocument(documentValue, pathValue) {
@@ -30,32 +27,39 @@
   }
 
   function createPrimary() {
-    trace("primary:add-document");
-    var documentValue = app.documents.add(DocumentColorSpace.RGB, 595, 842);
+    trace("primary:open-svg");
+    var documentValue = app.open(new File(PRIMARY_SVG_PATH));
     trace("primary:artboards");
     documentValue.artboards[0].name = "Primary";
     documentValue.artboards.add([620, 842, 1215, 0]).name = "Secondary";
     var editable = documentValue.layers[0];
     editable.name = "Editable";
 
-    trace("primary:point-text");
-    var japanese = addPointText(documentValue, editable, "JP_POINT", "受付時間（月〜土曜 14：00〜21：30）", 60, 760, 18);
+    trace("primary:name-text");
+    var aspectFrames = [];
+    var frameIndex;
+    for (frameIndex = 0; frameIndex < documentValue.textFrames.length; frameIndex++) {
+      var importedFrame = documentValue.textFrames[frameIndex];
+      var importedContents = String(importedFrame.contents);
+      if (importedContents.indexOf("受付時間") === 0) importedFrame.name = "JP_POINT";
+      else if (importedContents.indexOf("日本語") === 0) importedFrame.name = "JP_AREA";
+      else if (importedContents === "田田田" && importedFrame.left > 250) importedFrame.name = "OUTLINE_SOURCE";
+      else if (importedContents === "田田田") aspectFrames.push(importedFrame);
+    }
+    aspectFrames.sort(function (firstFrame, secondFrame) { return secondFrame.top - firstFrame.top; });
+    if (aspectFrames.length !== 3) throw new Error("Expected three imported aspect frames");
+    aspectFrames[0].name = "ASPECT_NORMAL";
+    aspectFrames[1].name = "ASPECT_H82";
+    aspectFrames[2].name = "ASPECT_V833";
+    var japanese = documentValue.textFrames.getByName("JP_POINT");
     japanese.textRange.characterAttributes.tracking = 0;
-    addPointText(documentValue, editable, "ASPECT_NORMAL", "田田田", 60, 700, 20);
-    var horizontal = addPointText(documentValue, editable, "ASPECT_H82", "田田田", 60, 650, 20);
+    var horizontal = documentValue.textFrames.getByName("ASPECT_H82");
     horizontal.textRange.characterAttributes.horizontalScale = 82;
-    var vertical = addPointText(documentValue, editable, "ASPECT_V833", "田田田", 60, 600, 20);
+    var vertical = documentValue.textFrames.getByName("ASPECT_V833");
     vertical.textRange.characterAttributes.verticalScale = 83.3;
 
-    trace("primary:area-text");
-    var areaPath = editable.pathItems.rectangle(540, 60, 210, 80);
-    var areaText = documentValue.textFrames.areaText(areaPath);
-    areaText.name = "JP_AREA";
-    areaText.contents = "学習塾の合格体験記です。日本語の禁則処理と改行を検証します。";
-    areaText.textRange.characterAttributes.size = 14;
-
     trace("primary:outline");
-    var outlineSource = addPointText(documentValue, editable, "OUTLINE_SOURCE", "田田田", 340, 700, 20);
+    var outlineSource = documentValue.textFrames.getByName("OUTLINE_SOURCE");
     var outlined = outlineSource.createOutline();
     outlined.name = "OUTLINE_H833";
     outlined.resize(83.3, 100, true, true, true, true, 100, Transformation.CENTER);
@@ -63,7 +67,8 @@
     trace("primary:locked-layer");
     var locked = documentValue.layers.add();
     locked.name = "Locked Reference";
-    addPointText(documentValue, locked, "LOCKED_TEXT", "変更禁止", 340, 600, 16);
+    var lockedRule = locked.pathItems.rectangle(560, 340, 120, 20);
+    lockedRule.name = "LOCKED_RULE";
     locked.locked = true;
     trace("primary:save");
     saveDocument(documentValue, PRIMARY_PATH);
@@ -75,7 +80,8 @@
     trace("decoy:add-document");
     var documentValue = app.documents.add(DocumentColorSpace.CMYK, 595, 842);
     documentValue.layers[0].name = "Decoy";
-    addPointText(documentValue, documentValue.layers[0], "DECOY_TEXT", "類似名の別文書", 60, 760, 18);
+    var decoyRule = documentValue.layers[0].pathItems.rectangle(760, 60, 200, 20);
+    decoyRule.name = "DECOY_RULE";
     trace("decoy:save");
     saveDocument(documentValue, DECOY_PATH);
     trace("decoy:saved");
@@ -91,11 +97,13 @@
     result.open("w");
     result.write('{"ok":true}');
     result.close();
+    app.userInteractionLevel = previousInteractionLevel;
   } catch (errorValue) {
     var errorFile = new File(RESULT_PATH);
     errorFile.encoding = "UTF-8";
     errorFile.open("w");
-    errorFile.write('{"ok":false,"message":' + errorValue.toString().toSource() + '}');
+    errorFile.write('{"ok":false,"message":' + jsonString(errorValue.toString()) + '}');
     errorFile.close();
+    try { app.userInteractionLevel = previousInteractionLevel; } catch (ignoredRestore) {}
   }
 }());
