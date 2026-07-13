@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+import('../dist/src/cli/main.js')
+  .then(({ main }) => main())
+  .catch((error) => {
+    process.stdout.write(`${JSON.stringify({ ok: false, error: { code: 'EXECUTION_FAILED', message: String(error) } })}\n`);
+    process.exitCode = 1;
+  });
