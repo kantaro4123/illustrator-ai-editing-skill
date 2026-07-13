@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
-    "validate": "npm run typecheck && npm test"
+    "validate": "npm run typecheck && npm test",
+    "prepublish": "scripts/prepublish-check.sh"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",

@@ -40,7 +40,8 @@ describe('cross-agent prompt evaluation corpus', () => {
 
   test('contains no production paths, customer names, or hidden activation hints', async () => {
     const source = await readFile(resolve(import.meta.dirname, '../prompts/cases.json'), 'utf8');
-    expect(source).not.toMatch(/\/Users\/Kantaro|テスト|学習塾|PROJECT_FILE|\.claude\/skills|\.codex\/skills/);
+    const privateData = new RegExp('/User' + 's/[^/]+|顧客固有名|実案件番号|\\.claude/skills|\\.codex/skills');
+    expect(source).not.toMatch(privateData);
     expect(source).not.toContain('$illustrator-ai-editing');
   });
 

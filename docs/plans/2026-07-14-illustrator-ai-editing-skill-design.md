@@ -355,8 +355,7 @@ Codex and Claude Code for:
 
 ## Installation and migration
 
-1. Initialize the canonical repository in
-   `/Volumes/work/Documents/仕事/illustrator-ai-editing`.
+1. Initialize the canonical `illustrator-ai-editing` repository.
 2. Copy current knowledge into the new structure, preserving provenance.
 3. Run all static/unit/integration tests.
 4. Back up both existing personal skill directories.

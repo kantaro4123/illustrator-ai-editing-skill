@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, readFile } from 'node:fs/promises';
 import { describe, expect, test } from 'vitest';
 
 const root = new URL('../../', import.meta.url);
@@ -26,5 +27,14 @@ describe('repository publication safety', () => {
     const attributes = await readFile(new URL('.gitattributes', root), 'utf8');
     expect(attributes).toContain('* text=auto eol=lf');
     expect(attributes).toContain('*.ai binary');
+  });
+
+  test('ships an executable prepublication gate', async () => {
+    const script = new URL('scripts/prepublish-check.sh', root);
+    await expect(access(script, constants.X_OK)).resolves.toBeUndefined();
+    const packageJson = JSON.parse(await readFile(new URL('package.json', root), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+    expect(packageJson.scripts.prepublish).toBe('scripts/prepublish-check.sh');
   });
 });
