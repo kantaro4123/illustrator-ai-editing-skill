@@ -1,1 +1,24 @@
 .worktrees/
+node_modules/
+dist/
+coverage/
+.DS_Store
+
+# Never publish production Illustrator documents or their automatic backups.
+*.ai
+*_backup_*
+*.bak
+
+# Generated transactions, sidecars, logs, and visual review artifacts.
+.illustrator-ai/
+transactions/
+*.out
+*.log
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# Synthetic fixtures are the only publishable visual/binary test artifacts.
+!tests/fixtures/synthetic/
+!tests/fixtures/synthetic/**
