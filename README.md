@@ -66,15 +66,15 @@ until the host has settled and `doctor` confirms its state. Read
 npm run validate
 npm run build
 python3 /path/to/skill-creator/scripts/quick_validate.py .
-npm run prepublish
+npm run prepublish:check
 ```
 
-`prepublish` rejects tracked production/generated artwork, personal absolute paths,
+`prepublish:check` rejects tracked production/generated artwork, personal absolute paths,
 and common credential formats. A deployment can add client-specific terms without
 committing them:
 
 ```bash
-PREPUBLISH_DENY_PATTERN='client-name|project-number' npm run prepublish
+PREPUBLISH_DENY_PATTERN='client-name|project-number' npm run prepublish:check
 ```
 
 No production Illustrator document or rendered client artwork belongs in this

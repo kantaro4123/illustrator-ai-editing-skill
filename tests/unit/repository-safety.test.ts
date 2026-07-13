@@ -35,6 +35,6 @@ describe('repository publication safety', () => {
     const packageJson = JSON.parse(await readFile(new URL('package.json', root), 'utf8')) as {
       scripts: Record<string, string>;
     };
-    expect(packageJson.scripts.prepublish).toBe('scripts/prepublish-check.sh');
+    expect(packageJson.scripts['prepublish:check']).toBe('scripts/prepublish-check.sh');
   });
 });
