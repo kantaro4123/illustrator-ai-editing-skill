@@ -1,0 +1,4 @@
+interface:
+  display_name: "Illustrator AI Editing"
+  short_description: "Safely edit and verify production Illustrator files"
+  default_prompt: "Use $illustrator-ai-editing to inspect, edit, save, and visually verify this Adobe Illustrator file."
