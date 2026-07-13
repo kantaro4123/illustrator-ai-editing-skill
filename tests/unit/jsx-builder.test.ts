@@ -11,15 +11,16 @@ describe('ExtendScript builder', () => {
       targetName: '対象.ai',
     });
     const markers = [
-      '@module json',
-      '@module result',
-      '@module document',
-      '@module identity',
-      '@module snapshot',
+      'function readUtf8File(',
+      'function writeResultFile(',
+      'function normalizedFsPath(',
+      'function findPageItemByUuid(',
+      'function snapshotItem(',
     ];
     const positions = markers.map((marker) => source.indexOf(marker));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(source).not.toMatch(/^\s*\/\/\s*@/m);
   });
 
   test('injects escaped paths and verifies the exact document before the command', async () => {

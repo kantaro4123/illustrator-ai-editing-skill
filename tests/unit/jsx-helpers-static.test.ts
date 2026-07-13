@@ -48,9 +48,11 @@ describe('production Illustrator helper library', () => {
       targetPath: '/tmp/file.ai',
       targetName: 'file.ai',
     });
-    for (const marker of ['@module geometry', '@module text', '@module japanese-text', '@module layout']) {
+    for (const marker of ['function inkBounds(', 'function replaceTextPreservingStyles(',
+      'function applyJapaneseJustification(', 'function boundsIntersect(']) {
       expect(source).toContain(marker);
     }
+    expect(source).not.toMatch(/^\s*\/\/\s*@/m);
     expect(source).not.toMatch(/\b(?:let|const)\b/);
     expect(source).not.toContain('=>');
   });

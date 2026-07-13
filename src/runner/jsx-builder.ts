@@ -22,7 +22,15 @@ export interface BuildJsxInput {
 }
 
 async function readCoreModule(name: (typeof CORE_MODULES)[number]): Promise<string> {
-  return readFile(new URL(`../jsx/core/${name}.jsx`, import.meta.url), 'utf8');
+  return stripExtendScriptAnnotations(
+    await readFile(new URL(`../jsx/core/${name}.jsx`, import.meta.url), 'utf8'),
+  );
+}
+
+function stripExtendScriptAnnotations(source: string): string {
+  // Illustrator 2026 treats JSDoc-like `// @...` lines as ExtendScript directives
+  // and reports a syntax error. Keep markers in source files for maintainers only.
+  return source.replace(/^\s*\/\/\s*@[^\r\n]*(?:\r?\n|$)/gm, '');
 }
 
 export async function buildJsx(input: BuildJsxInput): Promise<string> {
@@ -40,7 +48,7 @@ export async function buildJsx(input: BuildJsxInput): Promise<string> {
     '  __previousInteractionLevel = app.userInteractionLevel;',
     '  app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;',
     '  requireTargetDocument();',
-    input.commandSource,
+    stripExtendScriptAnnotations(input.commandSource),
     '} catch (__error) {',
     '  writeErrorResult(RESULT_PATH, __error);',
     '} finally {',

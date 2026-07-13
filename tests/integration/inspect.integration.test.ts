@@ -12,7 +12,8 @@ describe('inspect command composition', () => {
     });
     expect(request.params).toEqual({ detail: 'full' });
     expect(request.jsx).toContain('var TARGET_PATH = "/制作/テスト 文書.ai";');
-    expect(request.jsx).toContain('@command inspect');
+    expect(request.jsx).toContain('var inspectParams = parseJsonFile(PARAMS_PATH);');
+    expect(request.jsx).not.toMatch(/^\s*\/\/\s*@/m);
     expect(request.mutation).toBe(false);
   });
 });
