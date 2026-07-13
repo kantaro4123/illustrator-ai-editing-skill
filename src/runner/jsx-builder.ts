@@ -1,6 +1,16 @@
 import { readFile } from 'node:fs/promises';
 
-const CORE_MODULES = ['json', 'result', 'document', 'identity', 'snapshot'] as const;
+const CORE_MODULES = [
+  'json',
+  'result',
+  'document',
+  'identity',
+  'geometry',
+  'text',
+  'japanese-text',
+  'layout',
+  'snapshot',
+] as const;
 
 export interface BuildJsxInput {
   commandSource: string;
