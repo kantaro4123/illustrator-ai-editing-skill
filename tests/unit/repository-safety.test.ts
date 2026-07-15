@@ -36,5 +36,8 @@ describe('repository publication safety', () => {
       scripts: Record<string, string>;
     };
     expect(packageJson.scripts['prepublish:check']).toBe('scripts/prepublish-check.sh');
+    const source = await readFile(script, 'utf8');
+    expect(source).toContain('git rev-list HEAD');
+    expect(source).toContain("git log HEAD --format='%ae%n%ce'");
   });
 });
