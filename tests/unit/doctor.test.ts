@@ -41,7 +41,7 @@ describe('Illustrator doctor diagnosis', () => {
     const source = buildDoctorAppleScript(30);
     expect(source).toContain('with timeout of 30 seconds');
     expect(source).toContain('count of documents');
-    expect(source).toContain('full name');
+    expect(source).toContain('file path');
     expect(source).not.toMatch(/click|keystroke/i);
   });
 });

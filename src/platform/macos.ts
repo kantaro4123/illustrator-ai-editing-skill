@@ -10,7 +10,11 @@ export function buildDoctorAppleScript(timeoutSeconds: number): string {
     'repeat with currentDocument in documents',
     'set documentPath to ""',
     'try',
-    'set documentPath to POSIX path of (full name of currentDocument)',
+    // Illustrator documents expose `file path` (not `full name`, which is a
+    // compile error). The two-step assignment dereferences the loop variable;
+    // the direct one-liner form silently yields "".
+    'set documentFile to file path of currentDocument',
+    'set documentPath to POSIX path of documentFile',
     'end try',
     'set outputText to outputText & linefeed & (name of currentDocument) & tab & documentPath',
     'end repeat',

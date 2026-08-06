@@ -19,6 +19,19 @@ outline creation, duplication, recovery, and z-order changes. Refuse non-unique 
 Locked or hidden ancestors can prevent writes even when the leaf appears editable. Inspect
 and deliberately unlock only the required chain, then restore the prior state.
 
+## Collection scale traps
+
+`document.pageItems` enumerates EVERY nested descendant. A flyer with outlined headline
+text held 19,190 items (one path per glyph): full enumeration took over two minutes and
+serialized to 5MB, which reads as a false ILLUSTRATOR_UNRESPONSIVE timeout. Default to
+top-level items per layer (`layer.pageItems`, recursing only on demand), cap the count,
+and always report the true total plus a truncation flag so the caller knows to narrow.
+
+AppleScript-side: Illustrator documents expose `file path` (an alias), not `full name` —
+the latter is a compile error that makes every probe look unresponsive. Dereference loop
+variables with a two-step `set f to file path of d` before `POSIX path of f`; the inline
+form silently yields "".
+
 ## Coordinates and bounds
 
 Illustrator document bounds use `[left, top, right, bottom]`; vertical values decrease

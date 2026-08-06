@@ -137,18 +137,47 @@ for (inspectIndex = 0; inspectIndex < inspectDocument.textFrames.length; inspect
   });
 }
 
-for (inspectIndex = 0; inspectIndex < inspectDocument.pageItems.length; inspectIndex++) {
-  var pageItem = inspectDocument.pageItems[inspectIndex];
+// Documents with outlined text easily hold 10k+ nested paths (one per glyph);
+// enumerating doc.pageItems then takes minutes and yields multi-megabyte JSON.
+// Compact detail therefore reports TOP-LEVEL items per layer only; full detail
+// walks deep but is still capped. pageItemsTotal always carries the true count.
+var pageItemBudget = inspectParams.maxPageItems || (inspectParams.detail === "full" ? 2000 : 300);
+inspection.pageItemsTotal = inspectDocument.pageItems.length;
+inspection.pageItemsTruncated = false;
+
+function inspectPushPageItem(pageItem, depth) {
+  if (inspection.pageItems.length >= pageItemBudget) {
+    inspection.pageItemsTruncated = true;
+    return false;
+  }
   inspection.pageItems.push({
     uuid: inspectUuid(pageItem),
     typename: pageItem.typename,
     name: inspectName(pageItem),
     note: inspectNote(pageItem),
+    depth: depth,
+    childCount: pageItem.typename === "GroupItem" ? pageItem.pageItems.length : 0,
     geometricBounds: inspectBounds(pageItem.geometricBounds),
     visibleBounds: inspectBounds(pageItem.visibleBounds),
     locked: pageItem.locked,
     hidden: pageItem.hidden
   });
+  return true;
+}
+
+if (inspectParams.detail === "full") {
+  for (inspectIndex = 0; inspectIndex < inspectDocument.pageItems.length; inspectIndex++) {
+    if (!inspectPushPageItem(inspectDocument.pageItems[inspectIndex], -1)) break;
+  }
+} else {
+  var inspectLayerIndex;
+  for (inspectLayerIndex = 0; inspectLayerIndex < inspectDocument.layers.length; inspectLayerIndex++) {
+    var inspectLayer = inspectDocument.layers[inspectLayerIndex];
+    var inspectTopIndex;
+    for (inspectTopIndex = 0; inspectTopIndex < inspectLayer.pageItems.length; inspectTopIndex++) {
+      if (!inspectPushPageItem(inspectLayer.pageItems[inspectTopIndex], 0)) break;
+    }
+  }
 }
 
 for (inspectIndex = 0; inspectIndex < inspectDocument.placedItems.length; inspectIndex++) {

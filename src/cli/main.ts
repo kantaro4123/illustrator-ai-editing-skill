@@ -158,7 +158,9 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
   const inspect: CommandHandler = async (arguments_) => {
     const targetPath = arguments_.positionals[0]!;
     const detail = stringOption(arguments_, 'detail') === 'full' ? 'full' : 'compact';
-    const timeoutMs = numberOption(arguments_, 'timeout', 60) * 1000;
+    // Opening a large production file (25MB+) inside the JSX takes well over a
+    // minute on its own; 60s produced false ILLUSTRATOR_UNRESPONSIVE reports.
+    const timeoutMs = numberOption(arguments_, 'timeout', 180) * 1000;
     const executed = await runIllustratorTransaction({
       targetPath,
       mutation: false,
