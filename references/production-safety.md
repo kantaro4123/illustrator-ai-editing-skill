@@ -44,6 +44,24 @@ save to the agreed working path, and temporary verification artifacts. Ask befor
 the save destination, discarding an unknown unsaved document, force-quitting Illustrator
 when non-synthetic work may be open, installing system software, or publishing externally.
 
+## Print submission preflight
+
+A file that looks correct on screen can still fail at the printer. Check these before
+declaring a document ready to submit, because the failure is invisible locally:
+
+- **Linked vs embedded images.** A `PlacedItem` is a *link* to a path on this machine. Ship
+  the `.ai` alone and the printer gets a missing image — dropped artwork or a low-resolution
+  preview in its place. Any image placed during the session is linked by default. Embed
+  them (`placedItem.embed()`, which converts each to a `RasterItem`) and verify the link
+  count is zero afterwards. Images inherited from an approved base may already be linked —
+  check, don't assume.
+- **Colour mode** is CMYK for print.
+- **Effective resolution** of placed images at their final scale, not their pixel count.
+- **Minimum sizes**: text at or above ~6pt, strokes at or above ~0.3pt, no hairlines.
+- **Bleed and safety**: artwork to the bleed edge, text inside the safety margin (~3mm).
+
+Report each as a checked item with its measured value, not as a general assurance.
+
 ## Repository hygiene
 
 Ignore `.ai`, `.ait`, `.eps`, rendered images, sidecars, backups, lock data, transactions,

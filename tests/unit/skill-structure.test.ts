@@ -31,6 +31,7 @@ describe('cross-agent Illustrator skill package', () => {
     expect(files.sort()).toEqual([
       'aspect-ratio.md',
       'crash-recovery.md',
+      'deriving-from-approved.md',
       'illustrator-dom.md',
       'japanese-typography.md',
       'layout-review.md',

@@ -44,6 +44,14 @@ JSON object for commands; keep diagnostics on stderr in wrappers.
 
 Read [production safety](references/production-safety.md) before any production mutation.
 
+When the request derives a new deliverable from an already-approved file ("前回の◯◯を元に",
+"make the next one like this one"), that approved file is the base and the correct goal is a
+**minimal diff**: change only the content that genuinely differs and leave every reviewed
+property untouched. A template mentioned alongside it is a donor for the one part the base
+lacks, not the base. Read [deriving from an approved file](references/deriving-from-approved.md)
+first — choosing the wrong base or replacing whole strings on styled text are the two
+expensive mistakes there.
+
 ## Standard command loop
 
 ```bash
@@ -98,7 +106,8 @@ do not nudge until it looks plausible. Read [layout review](references/layout-re
 ## Task routing
 
 - End-to-end command sequence, flags, and evidence: [workflow](references/workflow.md)
-- Roles, backups, chronology, locks, and save rules: [production safety](references/production-safety.md)
+- Roles, backups, chronology, locks, save rules, and print preflight: [production safety](references/production-safety.md)
+- Basing a new file on an approved one, minimal diff, style-run preservation: [deriving from an approved file](references/deriving-from-approved.md)
 - Object identity, coordinates, text frames, and ES3 pitfalls: [Illustrator DOM](references/illustrator-dom.md)
 - Kinsoku, style-safe replacement, reception hours, and Japanese text: [Japanese typography](references/japanese-typography.md)
 - Live and outlined 100/100 restoration: [aspect ratio](references/aspect-ratio.md)
