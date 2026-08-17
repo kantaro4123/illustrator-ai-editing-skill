@@ -41,4 +41,28 @@ describe('document-coordinate image cropping', () => {
       }),
     ).toThrow('Invalid Illustrator bounds');
   });
+
+  test('rejects NaN and infinite crop geometry before invoking a renderer', () => {
+    expect(() =>
+      documentBoundsToPixels({
+        artboardTop: 100,
+        artboardLeft: 0,
+        dpi: 72,
+        bounds: [10, Number.NaN, 20, 0],
+        imageWidth: 100,
+        imageHeight: 100,
+      }),
+    ).toThrow('finite numbers');
+
+    expect(() =>
+      documentBoundsToPixels({
+        artboardTop: Number.POSITIVE_INFINITY,
+        artboardLeft: 0,
+        dpi: 72,
+        bounds: [10, 20, 30, 0],
+        imageWidth: 100,
+        imageHeight: 100,
+      }),
+    ).toThrow('finite numbers');
+  });
 });
