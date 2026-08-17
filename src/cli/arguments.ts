@@ -70,6 +70,10 @@ export function parseArguments(argv: string[]): ParsedArguments {
     if (!positionals[0]) throw new Error(`${command} requires an absolute document path.`);
     if (!isAbsolute(positionals[0])) throw new Error('Document path must be an absolute path.');
   }
+  if (command === 'compare') {
+    if (!positionals[1]) throw new Error('compare requires absolute before and after image paths.');
+    if (!isAbsolute(positionals[1])) throw new Error('compare requires absolute before and after image paths.');
+  }
   if (command === 'run' || command === 'save') {
     if (options.confirm !== true) {
       throw new Error(`${command} is a mutation and requires --confirm.`);
