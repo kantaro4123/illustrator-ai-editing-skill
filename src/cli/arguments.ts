@@ -72,7 +72,7 @@ export function parseArguments(argv: string[]): ParsedArguments {
   }
   if (command === 'compare') {
     if (!positionals[1]) throw new Error('compare requires absolute before and after image paths.');
-    if (!isAbsolute(positionals[1])) throw new Error('compare requires absolute before and after image paths.');
+    if (!isAbsolute(positionals[1])) throw new Error('compare after image path must be an absolute path.');
   }
   if (command === 'run' || command === 'save') {
     if (options.confirm !== true) {

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { VERSION } from '../index.js';
-import { classifyDoctorState } from '../commands/doctor.js';
+import { classifyDoctorState, isRecoveredDocumentName } from '../commands/doctor.js';
 import { createInspectCommand } from '../commands/inspect.js';
 import { collectRecoveryEvidence, planRecovery } from '../commands/recover.js';
 import { IllustratorError } from '../contracts/errors.js';
@@ -22,7 +22,11 @@ import { buildComparisonInvocations } from '../render/compare.js';
 import { documentBoundsToPixels } from '../render/crop.js';
 import { buildCropInvocation, chooseRenderer, renderAi, type ProcessInvocation } from '../render/render.js';
 import { writeAppleScript } from '../runner/apple-script.js';
-import { acquireDocumentLock, releaseDocumentLock } from '../runner/document-lock.js';
+import {
+  acquireDocumentLock,
+  markDocumentLockAmbiguous,
+  releaseDocumentLock,
+} from '../runner/document-lock.js';
 import { SerializedIllustratorExecutor } from '../runner/executor.js';
 import { buildJsx } from '../runner/jsx-builder.js';
 import {
@@ -31,6 +35,7 @@ import {
   readJsonResult,
   writeJsx,
   writeParams,
+  writeTransactionMarker,
   type TransactionFiles,
 } from '../runner/temp-files.js';
 import { COMMANDS, parseArguments, type CommandName, type ParsedArguments } from './arguments.js';
@@ -113,14 +118,21 @@ function shouldKeepMutationLock(error: unknown): boolean {
 
 async function runIllustratorTransaction(input: {
   targetPath: string;
+  command: string;
   mutation: boolean;
   timeoutMs: number;
   build: (files: TransactionFiles) => Promise<{ params: unknown; jsx: string }>;
   runtime: RuntimeDependencies;
 }): Promise<{ runId: string; value: unknown; transactionPath: string }> {
   const files = await createTransactionFiles();
+  // Only a failed mutation is ambiguous evidence worth keeping. Preserving every
+  // failure filled the temp directory with read-only debris that recovery then
+  // reported as unresolved mutations forever.
   let preserve = false;
   try {
+    await writeTransactionMarker(files, {
+      documentPath: input.targetPath, command: input.command, mutation: input.mutation,
+    });
     const command = await input.build(files);
     await writeParams(files, command.params);
     await writeJsx(files, command.jsx);
@@ -142,7 +154,7 @@ async function runIllustratorTransaction(input: {
     });
     return { runId: files.id, value, transactionPath: files.directory };
   } catch (error) {
-    preserve = true;
+    preserve = input.mutation;
     throw error;
   } finally {
     await cleanupTransaction(files, { preserve });
@@ -167,6 +179,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     const timeoutMs = numberOption(arguments_, 'timeout', 180) * 1000;
     const executed = await runIllustratorTransaction({
       targetPath,
+      command: 'inspect',
       mutation: false,
       timeoutMs,
       runtime,
@@ -249,6 +262,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
       const commandSource = `${await readFile(scriptPath, 'utf8')}\nwriteResultFile(RESULT_PATH, { ok: true, applied: true });`;
       const executed = await runIllustratorTransaction({
         targetPath,
+        command: 'run',
         mutation: true,
         timeoutMs,
         runtime,
@@ -270,6 +284,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
       });
     } catch (error) {
       releaseLock = !shouldKeepMutationLock(error);
+      if (!releaseLock) await markDocumentLockAmbiguous(lock);
       throw error;
     } finally {
       if (releaseLock) await releaseDocumentLock(lock, runId);
@@ -297,7 +312,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
       assertSaveAllowed(manifest, targetPath);
       const commandSource = await readFile(new URL('../jsx/commands/save.jsx', import.meta.url), 'utf8');
       const executed = await runIllustratorTransaction({
-        targetPath, mutation: true, timeoutMs, runtime,
+        targetPath, command: 'save', mutation: true, timeoutMs, runtime,
         build: async (files) => ({
           params: { destinationPath: targetPath },
           jsx: await buildJsx({ commandSource, paramsPath: files.paramsPath, resultPath: files.resultPath,
@@ -311,6 +326,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
       });
     } catch (error) {
       releaseLock = !shouldKeepMutationLock(error);
+      if (!releaseLock) await markDocumentLockAmbiguous(lock);
       throw error;
     } finally {
       if (releaseLock) await releaseDocumentLock(lock, runId);
@@ -369,7 +385,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     ...arguments_, command: 'verify', options: { ...arguments_.options, detail: 'full' },
   });
 
-  handlers.recover = async () => {
+  handlers.recover = async (arguments_) => {
     const doctor = await handlers.doctor({ command: 'doctor', positionals: [], options: {} });
     const doctorData = doctor.ok && typeof doctor.data === 'object' && doctor.data !== null
       ? doctor.data as { state?: unknown; documents?: unknown }
@@ -384,12 +400,14 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
         ))
       : [];
     const recoveredDocuments = documents
-      .filter((document) => document.name.toLowerCase().includes('[recovered]'))
+      .filter((document) => isRecoveredDocumentName(document.name))
       .map((document) => document.path || document.name);
-    const evidence = await collectRecoveryEvidence();
+    const scope = arguments_.positionals[0];
+    const evidence = await collectRecoveryEvidence(scope ? { documentPath: scope } : {});
     const plan = planRecovery({
       doctorState: state as Parameters<typeof planRecovery>[0]['doctorState'],
       ambiguousTransactions: evidence.ambiguousTransactions,
+      ambiguousLocks: evidence.ambiguousLocks,
       recoveredDocuments,
     });
     return successResult({

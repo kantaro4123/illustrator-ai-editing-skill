@@ -1,7 +1,10 @@
 name: validate
 
 on:
+  # Pull-request branches are covered by the pull_request trigger; limiting push
+  # to main keeps a branch push from running the same job twice.
   push:
+    branches: [main]
   pull_request:
 
 jobs:

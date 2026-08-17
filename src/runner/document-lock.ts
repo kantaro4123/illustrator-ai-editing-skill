@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, open, readFile, unlink } from 'node:fs/promises';
+import { mkdir, open, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { IllustratorError } from '../contracts/errors.js';
 
@@ -9,6 +9,12 @@ export interface DocumentLockMetadata {
   command: string;
   pid: number;
   startedAt: string;
+  /**
+   * Set when a mutation timed out ambiguously and the lock was deliberately kept.
+   * The owning CLI process is dead by then, so a PID probe alone would classify
+   * the lock as ordinary debris and clear the very warning it was left to raise.
+   */
+  ambiguousTimeoutAt?: string;
 }
 
 export interface DocumentLock {
@@ -73,10 +79,20 @@ export async function acquireDocumentLock(
   return { path, metadata };
 }
 
+/** Records why a lock is being retained so recovery can tell it from debris. */
+export async function markDocumentLockAmbiguous(
+  lock: DocumentLock,
+  timestamp: string = new Date().toISOString(),
+): Promise<void> {
+  const metadata: DocumentLockMetadata = { ...lock.metadata, ambiguousTimeoutAt: timestamp };
+  await writeFile(lock.path, JSON.stringify(metadata), 'utf8');
+}
+
 export interface LockDiagnosis {
   exists: boolean;
   stale: boolean;
   ownerAlive: boolean;
+  ambiguous: boolean;
   metadata?: DocumentLockMetadata;
 }
 
@@ -87,10 +103,13 @@ export async function diagnoseDocumentLock(
   try {
     const metadata = await parseLock(path);
     const ownerAlive = isProcessAlive(metadata.pid);
-    return { exists: true, stale: !ownerAlive, ownerAlive, metadata };
+    const ambiguous = typeof metadata.ambiguousTimeoutAt === 'string';
+    // An ambiguous lock is never stale: Illustrator may still be executing the
+    // script that outlived its caller.
+    return { exists: true, stale: !ownerAlive && !ambiguous, ownerAlive, ambiguous, metadata };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { exists: false, stale: false, ownerAlive: false };
+      return { exists: false, stale: false, ownerAlive: false, ambiguous: false };
     }
     throw error;
   }
