@@ -103,11 +103,17 @@ After each coherent transaction:
 For review feedback such as “spacing feels wrong,” measure ink bounds and repeated gaps;
 do not nudge until it looks plausible. Read [layout review](references/layout-review.md).
 
+Passing every mechanical check above does not predict review approval. For branded material,
+also audit judgment items — grid alignment, spacing in em, anchor-derived geometry — against
+the brand's published design guideline. Read
+[design guidelines](references/design-guidelines.md) before declaring review readiness.
+
 ## Task routing
 
 - End-to-end command sequence, flags, and evidence: [workflow](references/workflow.md)
 - Roles, backups, chronology, locks, save rules, and print preflight: [production safety](references/production-safety.md)
 - Basing a new file on an approved one, minimal diff, style-run preservation: [deriving from an approved file](references/deriving-from-approved.md)
+- Brand guideline compliance, spacing judgment in em, restored-element anchors: [design guidelines](references/design-guidelines.md)
 - Object identity, coordinates, text frames, and ES3 pitfalls: [Illustrator DOM](references/illustrator-dom.md)
 - Kinsoku, style-safe replacement, reception hours, and Japanese text: [Japanese typography](references/japanese-typography.md)
 - Live and outlined 100/100 restoration: [aspect ratio](references/aspect-ratio.md)

@@ -32,6 +32,7 @@ describe('cross-agent Illustrator skill package', () => {
       'aspect-ratio.md',
       'crash-recovery.md',
       'deriving-from-approved.md',
+      'design-guidelines.md',
       'illustrator-dom.md',
       'japanese-typography.md',
       'layout-review.md',
