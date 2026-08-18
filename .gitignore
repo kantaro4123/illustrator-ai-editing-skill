@@ -22,3 +22,6 @@ transactions/
 # Synthetic fixtures are the only publishable visual/binary test artifacts.
 !tests/fixtures/synthetic/
 !tests/fixtures/synthetic/**
+
+# Operator-local brand checklists are never published.
+references/local-*.md

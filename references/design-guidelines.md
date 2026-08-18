@@ -1,49 +1,41 @@
 # Working under a brand design guideline
 
-Review feedback is not random taste. Franchise and brand work is usually judged against a
-published design guideline, and most "subjective" rejections are violations of a rule that
-was written down all along. Finding that document changes review from guessing to checking.
+Review feedback is not random taste. Franchise, agency and in-house brand work is usually
+judged against a published design guideline, and most "subjective" rejections are violations
+of a rule that was written down all along. Finding that document turns review from guessing
+into checking.
 
 ## Find the guideline before the first round
 
 Before designing or auditing branded material, ask whether an official guideline exists and
-fetch it. Encode its rules into the audit checklist for the session. Do this at the start:
-discovering the guideline after a rejection converts avoidable rounds into rework.
+fetch it. Do this at the start of the project: discovering the guideline only after a
+rejection converts avoidable rounds into rework.
 
-For 武田塾 print work the public guideline is https://suneight.design/takedaguide/
-(re-check the page each project; the summary below reflects its state as of 2026-08).
+Then write the rules down as a project-local checklist. Keep it out of this repository — a
+client's brand rules, asset names and internal phrasing belong in the operator's own working
+notes, not in a shared skill. A gitignored `references/local-*.md` beside this file is picked
+up by the skill on that machine and never published.
 
-## Takeda guideline checklist (encoded)
+## What such a guideline typically constrains
 
-Colour — compose from the three base colours only:
+Use this as the shape of the checklist to build, then fill it from the actual document:
 
-- black K100 (#231815);
-- red M100 Y100 (#c11920; the irregular variant #e60012 only where already in use);
-- white #ffffff.
-
-Type:
-
-- gothic or mincho families; Hiragino ゴシック/明朝 on Mac;
-- no outlines/フチ and no drop shadows on text — flat design;
-- avoid overly thin weights, especially at small sizes;
-- never change glyph aspect ratio (this is also a hard audit item elsewhere in this skill).
-
-Layout:
-
-- text must sit on consistent vertical/horizontal grid lines — misaligned grids are an
-  explicitly named rejection reason;
-- leave real margin relative to the ad area; dense, margin-free layouts are rejected;
-- background art must not be visibly displaced from its designed position.
-
-Content conventions:
-
-- addresses and phone numbers in half-width alphanumerics (this coexists with the
-  full-width wave-dash rule for time ranges — the two rules cover different characters);
-- 「無料受験相談受付中」 on a white background: red frame, red text;
-- logos only from official assets, aspect ratio untouched, and the registered
-  「日本初！授業はしない。」 stays attached;
-- brand characters: printed material, signage and SNS cover images only — no ratio change,
-  no composites, no added speech bubbles, no drawing over faces.
+- **Colour** — an exact, small palette given in CMYK/hex, and a rule against introducing
+  further colours.
+- **Type** — permitted families and weights, a floor on weight/size, and usually a ban on
+  outlines and drop shadows on text.
+- **Glyph geometry** — aspect ratio locked at 100/100. This is nearly universal and is also
+  a hard audit item elsewhere in this skill.
+- **Grid** — text aligned to consistent vertical and horizontal lines. Misaligned grids are
+  a commonly named rejection reason and are easy to miss without measuring shared axes.
+- **Density** — a required margin relative to the ad area; dense, margin-free layouts get
+  rejected even when nothing overflows.
+- **Character width** — which fields take half-width alphanumerics (addresses, phone
+  numbers) versus where full-width forms are required (often time ranges and their wave
+  dash). These two rules coexist and cover different characters; do not normalize globally.
+- **Fixed phrases and marks** — wording that must appear verbatim, with prescribed colour
+  and framing, plus logo and character-asset rules (official files only, ratio untouched,
+  no composites or overdrawing).
 
 ## Mechanical checks are not the whole review
 
@@ -80,14 +72,14 @@ block's bottom edge where the reviewer already accepted it.
 ## Restored elements inherit their geometry from anchors
 
 Twice, an element recreated during editing was rejected for eyeballed geometry: a divider
-line ended at a round number instead of reaching the address baseline, and station-walk
-frames were sized by feel. The rule:
+rule ended at a round number instead of reaching the adjacent text baseline, and a set of
+label frames was sized by feel. The rule:
 
 1. find what the element aligned to in the approved original — an ink edge, a shared axis,
-   a partner element on the other column;
+   a partner element in the opposite column;
 2. derive every coordinate of the restored element from those named anchors;
-3. record the anchor in the verification report ("divider bottom = 中山 address ink bottom
-   86.85"), so the next round can re-check the relationship instead of the number.
+3. record the anchor in the verification report ("divider bottom = right-column address ink
+   bottom 86.85"), so the next round can re-check the relationship, not the number.
 
 If no anchor exists, that is a design decision — propose one and say so, rather than
-silently inventing a value that reads as "適当" to a reviewer.
+silently inventing a value that a reviewer will read as arbitrary.

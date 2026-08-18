@@ -9,6 +9,13 @@ async function text(path: string): Promise<string> {
   return readFile(resolve(root, path), 'utf8');
 }
 
+// `local-*.md` holds operator-specific client rules. It is gitignored and never
+// linked from the router, so it is outside the published-reference contract.
+async function publishedReferences(): Promise<string[]> {
+  const entries = await readdir(resolve(root, 'references'));
+  return entries.filter((name) => name.endsWith('.md') && !name.startsWith('local-'));
+}
+
 describe('cross-agent Illustrator skill package', () => {
   test('has valid trigger-rich frontmatter and remains a concise router', async () => {
     const source = await text('SKILL.md');
@@ -27,7 +34,7 @@ describe('cross-agent Illustrator skill package', () => {
 
   test('links every reference exactly through the skill router', async () => {
     const skill = await text('SKILL.md');
-    const files = (await readdir(resolve(root, 'references'))).filter((name) => name.endsWith('.md'));
+    const files = await publishedReferences();
     expect(files.sort()).toEqual([
       'aspect-ratio.md',
       'crash-recovery.md',
@@ -45,7 +52,7 @@ describe('cross-agent Illustrator skill package', () => {
   });
 
   test('keeps reference bodies unique and agent-neutral', async () => {
-    const files = (await readdir(resolve(root, 'references'))).filter((name) => name.endsWith('.md'));
+    const files = await publishedReferences();
     const bodies = await Promise.all(files.map((name) => text(`references/${name}`)));
     const hashes = bodies.map((body) => createHash('sha256').update(body.trim()).digest('hex'));
     expect(new Set(hashes).size).toBe(hashes.length);

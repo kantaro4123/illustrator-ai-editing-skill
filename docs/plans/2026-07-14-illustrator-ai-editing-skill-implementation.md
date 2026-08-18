@@ -705,7 +705,7 @@ git commit -m "feat: install shared skill for codex and claude"
 
 **Step 1: Select a non-pristine working copy**
 
-Use a temporary copy of the prior Takeda flyer working file. Mark the older
+Use a temporary copy of a prior real flyer working file. Mark the older
 pre-review file as comparison-only. Do not mutate either original.
 
 **Step 2: Run read-only inspection and rendering**
