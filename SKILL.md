@@ -40,6 +40,10 @@ JSON object for commands; keep diagnostics on stderr in wrappers.
 - Never rewrite, condense, or paraphrase supplied copy to make it fit. Change size, spacing,
   or layout, or ask the copy's owner to shorten it. Report corrections to transcription
   damage explicitly.
+- Never position by assigning `item.left`/`item.top` a value derived from `geometricBounds`;
+  those properties address `visibleBounds`, so effects displace the item silently. Move by
+  delta (`translate`, `moveItemTo`), and after moving artwork with separate captions,
+  verify their relative offsets, not just each absolute position.
 - Never infer whether a percentage compressed width or height. Require direct metadata,
   before/after geometry, or multiple outlined glyph measurements against a 100/100 sample.
 - Do not declare success from a JSON result alone. Inspect saved state and review renders.
@@ -118,6 +122,7 @@ the brand's published design guideline. Read
 - Basing a new file on an approved one, minimal diff, style-run preservation: [deriving from an approved file](references/deriving-from-approved.md)
 - Brand guideline compliance, spacing judgment in em, restored-element anchors: [design guidelines](references/design-guidelines.md)
 - Fitting supplied copy, measuring capacity, size sweeps, width fitting: [fitting copy](references/fitting-copy.md)
+- Reproducing from a photo of a printed piece, and which measurement to trust: [measuring a printed reference](references/measuring-a-printed-reference.md)
 - Object identity, coordinates, text frames, and ES3 pitfalls: [Illustrator DOM](references/illustrator-dom.md)
 - Kinsoku, style-safe replacement, reception hours, and Japanese text: [Japanese typography](references/japanese-typography.md)
 - Live and outlined 100/100 restoration: [aspect ratio](references/aspect-ratio.md)

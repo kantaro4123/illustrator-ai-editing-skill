@@ -107,3 +107,35 @@ ideal you invented: matching a number that already cleared review is defensible,
 "improving" past it silently changes something the reviewer accepted.
 
 Apply the same test to any element whose first glyph, first line, or line count changed.
+
+## Building a variant the template does not have
+
+Sometimes the requested layout exists only as a printed example — a no-photo version of a
+flyer whose template only ships the photo version. Derive it from the closest approved file
+and classify every element up front:
+
+- **deleted** — what the variant does not have (the photograph, its badge, the large name);
+- **repositioned** — what exists but sits elsewhere (a deviation graphic moving to the
+  corner the photo vacated);
+- **retyped** — what keeps its role but changes content and size;
+- **untouched** — everything outside the restructured zone.
+
+Say which zone each element is in before editing, then leave the untouched zone genuinely
+untouched: the footer, the consultation box and the logo carry prior review approval and
+have no reason to move because the header changed.
+
+Pick the base by what it already contains, not by recency. A four-section base was the right
+start for a four-section variant even though a newer three-section file existed, because
+adding a section back costs more than restructuring a header.
+
+## When the reference and the current template disagree
+
+An old printed reference and the current approved template will differ in shared
+boilerplate — walking times, address formatting, whether a line says 「お問い合わせ」 or
+「お問合わせ」, whether opening hours include holidays. These are not reproduction errors;
+they are the template moving on, or the reference being newer than your base.
+
+Do not silently choose. List every such difference with both values and ask, because only
+the client knows which is current. Reproduce the *content* of the reference and keep the
+*boilerplate* of the approved base until told otherwise — that keeps the diff against the
+approved file minimal, which is the whole point of deriving.

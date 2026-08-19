@@ -41,6 +41,16 @@ strokes/effects. Text-frame bounds include font metrics and are not the same as 
 For exact text alignment, duplicate the frame, outline the duplicate, measure its glyph
 bounds, then remove it. Never destroy the production live text merely to measure ink.
 
+`item.left` and `item.top` are **visibleBounds** properties. Assigning them a target derived
+from `geometricBounds` displaces the item by exactly the effect it carries — a glow, shadow
+or stroke — and reports a plausible position afterwards, so nothing looks wrong until a
+human sees the render. An arrow with a 10pt glow drifted 10pt away from the text labelling
+it this way, and the defect survived four more edits because every later script re-derived
+its delta from the already-wrong position.
+
+Move by delta, never by absolute assignment: `item.translate(dx, dy)`, or the helpers
+`moveItemTo`, `setLeft`, `setTop`, which compute the delta from `geometricBounds` for you.
+
 At DPI `d`, points convert to pixels by `d / 72`. Relative to an artboard:
 
 ```text

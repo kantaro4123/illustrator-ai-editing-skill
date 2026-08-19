@@ -100,3 +100,28 @@ arithmetic before presenting options, and present the numbers with them.
 - ink bottom to the next boundary meets the clearance you budgeted;
 - the heading-to-body and inter-section gaps still equal the approved values;
 - render and read the block at normal size.
+
+## Solve for the gap instead of nudging
+
+"Too much white space at the bottom" is a distribution problem with a closed form. Do not
+nudge sections one at a time; state the target clearance and solve for the repeated gap:
+
+```
+gap = (span - sum(block heights) - sum(fixed per block)) / (blocks - 1)
+```
+
+where `span` runs from the first block's top to the boundary below, and the fixed part per
+block is its heading height plus the approved heading-to-body gap. Applied to four
+testimonial sections this turned 39pt of dead space at the foot of a column into an even
+20.5pt between sections with 11.7pt of clearance left, in one pass.
+
+Keep the approved values out of the solve. The heading-to-body gap and the leading were set
+by a reviewer; only the gap *between* blocks is free. Check the result still reads as a
+hierarchy: line gap inside a paragraph < heading-to-its-body < between blocks.
+
+## Balance the two columns at the foot
+
+Where two columns end near a boundary, a reviewer reads their bottom edges as a pair. Align
+the last line's **ink bottom** across columns, and keep the clearance below them similar.
+Aligning frame bounds instead leaves a visible step, because the frames carry different
+font metrics.

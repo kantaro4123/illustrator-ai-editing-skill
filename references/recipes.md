@@ -101,3 +101,37 @@ for (var k = searchValue.length - 2; k >= 0; k--) {
 so a match spanning two runs collapses onto the first run's style. For a label-plus-number
 line where the halves are deliberately different sizes, either replace each run separately or
 reapply both runs by index afterwards, and confirm with bounds that the size contrast survived.
+
+## Align a block to one character of the line above
+
+Reviewers ask for alignment against a specific glyph ("line this up under the 合"). Measure
+the advance of everything before that character by setting a duplicate to the full line and
+then to the tail starting at the target character: the difference of their **ink right**
+edges is the prefix advance, because both strings end identically.
+
+```javascript
+var probe = title.duplicate();
+probe.contents = "理工学部へ合格!!";  var full = inkBounds(probe)[2];
+probe.contents = "合格!!";            var tail = inkBounds(probe);
+probe.remove();
+var targetLeft = tail[0] + (full - tail[2]);   // ink left of 合 within the full line
+```
+
+The same subtraction gives a hanging indent for a wrapped label line: indent the second
+paragraph by the advance of the label prefix so its text starts under the first line's text
+rather than under the label.
+
+## Move artwork and the text sitting on it as one
+
+Artwork and the captions printed over it are usually separate, unparented items. Anything
+that moves one must move all of them by the same delta, and the arrangement must be checked
+afterwards — absolute positions can each look right while the relationship is broken.
+
+```javascript
+var offsets = relativeOffsets([label, value], graphic);   // before
+moveSetTo([graphic, label, value], graphic, 1168, 752);   // move together
+restoreRelative([label, value], graphic, offsets);        // assert/repair after
+```
+
+When the relationship is already broken, recover the correct offsets from the untouched
+base file rather than guessing them from the current state.

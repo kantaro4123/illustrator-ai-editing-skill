@@ -17,9 +17,26 @@ describe('production Illustrator helper library', () => {
       'alignInkBottom',
       'translateRigid',
       'equalizeVerticalGaps',
+      'setTop',
+      'moveItemTo',
+      'moveSetTo',
+      'relativeOffsets',
+      'restoreRelative',
     ]) {
       expect(source).toContain(`function ${helper}(`);
     }
+  });
+
+  // The positioning helpers exist because assigning left/top a geometricBounds-derived
+  // value silently displaces anything with a glow or stroke. They must stay delta-based.
+  test('positions items by delta rather than assigning left/top', async () => {
+    const source = await core('geometry');
+    for (const helper of ['setLeft', 'setTop', 'moveItemTo']) {
+      const body = source.slice(source.indexOf(`function ${helper}(`));
+      const end = body.indexOf('\n}');
+      expect(`${helper}:${body.slice(0, end).includes('.translate(')}`).toBe(`${helper}:true`);
+    }
+    expect(source).not.toMatch(/\.(left|top)\s*=/);
   });
 
   test('ships style-safe text and overflow helpers', async () => {
