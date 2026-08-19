@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { describe, expect, test } from 'vitest';
 import { buildJsx } from '../../src/runner/jsx-builder.js';
 
@@ -28,6 +28,35 @@ describe('production Illustrator helper library', () => {
     expect(source).toContain('for (index = matches.length - 1; index >= 0; index--)');
     expect(source).toContain('function textOverflows(');
     expect(source).not.toContain('frame.contents = frame.contents.replace');
+  });
+
+  // A presence assertion cannot tell a working helper from one that calls an API
+  // the host does not have. `characters.itemByRange` is InDesign-only and threw on
+  // every call until it was found in production.
+  test('never reaches for InDesign-only APIs that Illustrator does not implement', async () => {
+    const names = await readdir(new URL('../../src/jsx/', import.meta.url), { recursive: true });
+    const sources = await Promise.all(
+      names
+        .filter((name) => String(name).endsWith('.jsx'))
+        .map(async (name) => [String(name), await readFile(new URL(`../../src/jsx/${name}`, import.meta.url), 'utf8')] as const),
+    );
+    expect(sources.length).toBeGreaterThan(5);
+    const forbidden = [
+      'itemByRange',
+      'itemByName',
+      'everyItem',
+      'insertionPoints',
+      'parentStory',
+      'changeGrep',
+      'findGrep',
+      'appliedFont',
+    ];
+    for (const [name, source] of sources) {
+      const body = source.replace(/\/\/[^\n]*/g, '');
+      for (const api of forbidden) {
+        expect(`${name}:${body.includes(api) ? api : 'clean'}`).toBe(`${name}:clean`);
+      }
+    }
   });
 
   test('ships verified Japanese typography helpers', async () => {

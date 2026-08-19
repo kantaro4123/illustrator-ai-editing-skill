@@ -83,3 +83,29 @@ label frames was sized by feel. The rule:
 
 If no anchor exists, that is a design decision — propose one and say so, rather than
 silently inventing a value that a reviewer will read as arbitrary.
+
+## A past correction is not a standing rule
+
+A reviewer's note fixes the document in front of them. It does not automatically become a
+constraint on every future document, and treating it as one can be worse than ignoring it.
+
+A real instance: the note read 「フォントサイズを10pt〜8ptにしてもう少し行間を空けるように」
+— *reduce* the body from 10pt to 8pt so there is room for more leading. That was carried
+forward as "body text must be at least 8pt", a floor that was never stated. On the next
+flyer that invented floor made the supplied copy impossible to fit, and nearly justified
+cutting 40% of a student's own words. The published guideline, checked directly, sets no type
+size at all.
+
+Before treating remembered feedback as a rule:
+
+1. **Quote it.** Recover the original wording from the request or transcript rather than
+   working from a paraphrase — the paraphrase is where the meaning drifted.
+2. **Read its direction.** "10pt〜8ptにして" with "行間を空ける" is a reduction to buy leading;
+   it constrains that document's crowding, not every document's minimum.
+3. **Separate the sources.** Standing rules live in the published guideline. Review notes are
+   corrections to one artifact. Only the first generalizes.
+4. **Say which you are applying.** If a constraint would force an expensive concession, name
+   its source out loud before conceding — that is when a wrong rule gets caught.
+
+When the user challenges a constraint you asserted, check the primary source before defending
+it. Here the challenge was correct and the evidence took one search to find.

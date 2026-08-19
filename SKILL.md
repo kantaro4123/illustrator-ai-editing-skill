@@ -37,6 +37,9 @@ JSON object for commands; keep diagnostics on stderr in wrappers.
 - Require `--confirm` for `run` and `save`. A custom JSX file must be an absolute path.
 - Preserve user-stated type size. If restoring 100/100 scale causes overflow, change
   layout or spacing instead of silently shrinking the text.
+- Never rewrite, condense, or paraphrase supplied copy to make it fit. Change size, spacing,
+  or layout, or ask the copy's owner to shorten it. Report corrections to transcription
+  damage explicitly.
 - Never infer whether a percentage compressed width or height. Require direct metadata,
   before/after geometry, or multiple outlined glyph measurements against a 100/100 sample.
 - Do not declare success from a JSON result alone. Inspect saved state and review renders.
@@ -114,6 +117,7 @@ the brand's published design guideline. Read
 - Roles, backups, chronology, locks, save rules, and print preflight: [production safety](references/production-safety.md)
 - Basing a new file on an approved one, minimal diff, style-run preservation: [deriving from an approved file](references/deriving-from-approved.md)
 - Brand guideline compliance, spacing judgment in em, restored-element anchors: [design guidelines](references/design-guidelines.md)
+- Fitting supplied copy, measuring capacity, size sweeps, width fitting: [fitting copy](references/fitting-copy.md)
 - Object identity, coordinates, text frames, and ES3 pitfalls: [Illustrator DOM](references/illustrator-dom.md)
 - Kinsoku, style-safe replacement, reception hours, and Japanese text: [Japanese typography](references/japanese-typography.md)
 - Live and outlined 100/100 restoration: [aspect ratio](references/aspect-ratio.md)

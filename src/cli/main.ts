@@ -241,7 +241,10 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     });
     try {
       const backup = await createBackup(targetPath);
-      const commandSource = `${await readFile(scriptPath, 'utf8')}\nwriteResultFile(RESULT_PATH, { ok: true, applied: true });`;
+      // Only supply the default result when the script did not write its own.
+      // Appending unconditionally destroyed any data a custom script returned.
+      const commandSource = `${await readFile(scriptPath, 'utf8')}\n`
+        + 'if (!File(RESULT_PATH).exists) writeResultFile(RESULT_PATH, { ok: true, applied: true });';
       const executed = await runIllustratorTransaction({
         targetPath,
         mutation: true,

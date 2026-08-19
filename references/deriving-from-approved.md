@@ -83,3 +83,27 @@ regression you introduced.
 Cheap and effective: render both to PNG at the same dpi, crop the same regions, and compare
 side by side — bounds comparison per object catches what the eye misses. Pay particular
 attention to objects you edited textually, because that is where style-run collapse hides.
+
+## Changing the text moves the ink even when the frame does not
+
+A Japanese glyph carries its own left side bearing, so replacing copy changes where the ink
+starts even though the text frame never moved. Swapping a headline's first character from
+東 to 市 pushed the visible left edge 1.5pt right — invisible in the frame coordinates,
+plainly visible against the column below it, and squarely inside the "文字のグリッドが揃って
+いない" category reviewers reject for.
+
+Frame bounds cannot detect this. After any copy change, measure ink bounds and compare them
+against the approved predecessor, numerically:
+
+```
+approved flyer : headline ink left 761.04, +1.92pt from the body column
+this flyer     : headline ink left 762.53, +3.36pt   <- 1.44pt worse
+after aligning : headline ink left 761.04, +1.92pt   <- matches approved
+```
+
+Note what the target is. The approved file is not perfectly aligned either — it carries a
++1.92pt offset that passed review. The goal is **parity with the approved file**, not an
+ideal you invented: matching a number that already cleared review is defensible, while
+"improving" past it silently changes something the reviewer accepted.
+
+Apply the same test to any element whose first glyph, first line, or line count changed.

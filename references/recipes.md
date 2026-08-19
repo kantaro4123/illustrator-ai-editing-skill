@@ -70,3 +70,34 @@ writeResultFile(RESULT_PATH, { collisions: findCollisions(group.pageItems) });
 ```
 
 A zero collision count does not prove adequate breathing room; review near gaps visually.
+
+## Return your own data from a custom script
+
+`run` appends a default result writer after your source, but only when the script did not
+already produce one. Write to `RESULT_PATH` yourself and that value is what `run` returns:
+
+```javascript
+writeResultFile(RESULT_PATH, { ok: true, measurements: report });
+```
+
+Older builds appended the default unconditionally and destroyed whatever the script wrote,
+which is why some scripts write to a private path instead. That workaround still works and is
+worth keeping when the same file must be read by a later, separate transaction.
+
+## Replace part of a styled line
+
+`characters.itemByRange` does not exist in Illustrator — it is InDesign, and it throws.
+Write the replacement into the first character of the match so it inherits that character's
+style, then delete the leftover originals from the back:
+
+```javascript
+frame.textRange.characters[start].contents = replacement;
+for (var k = searchValue.length - 2; k >= 0; k--) {
+  frame.textRange.characters[start + replacement.length + k].remove();
+}
+```
+
+`replaceTextPreservingStyles` does exactly this. It preserves the style at the match's start,
+so a match spanning two runs collapses onto the first run's style. For a label-plus-number
+line where the halves are deliberately different sizes, either replace each run separately or
+reapply both runs by index afterwards, and confirm with bounds that the size contrast survived.

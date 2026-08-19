@@ -10,14 +10,32 @@ function replaceTextPreservingStyles(frame, searchValue, replacementValue) {
     matches.push(found);
     offset = found + searchValue.length;
   }
+  var replacement = (replacementValue === undefined || replacementValue === null)
+    ? "" : String(replacementValue);
   var index;
   for (index = matches.length - 1; index >= 0; index--) {
     var startValue = matches[index];
-    var range = frame.characters.itemByRange(startValue, startValue + searchValue.length - 1);
-    range.contents = replacementValue;
+    // Illustrator has no characters.itemByRange -- that is an InDesign API, and
+    // calling it throws. Write the whole replacement into the first character so
+    // it inherits that character's style, then delete the leftover originals from
+    // the back so earlier indices stay valid.
+    var kept = 0;
+    if (replacement.length > 0) {
+      frame.textRange.characters[startValue].contents = replacement;
+      kept = replacement.length;
+    }
+    var removeCount = searchValue.length - (replacement.length > 0 ? 1 : 0);
+    var removeIndex;
+    for (removeIndex = removeCount - 1; removeIndex >= 0; removeIndex--) {
+      frame.textRange.characters[startValue + kept + removeIndex].remove();
+    }
   }
   return matches.length;
 }
+
+// A run that spans two style runs collapses onto the first run's style. When the
+// halves must keep different styles -- a small label beside large digits -- replace
+// each run separately, or reapply both runs by index after the edit.
 
 function textOverflows(frame) {
   if (frame.kind !== TextType.AREATEXT) return false;
