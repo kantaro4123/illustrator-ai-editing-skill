@@ -1,7 +1,41 @@
 #!/usr/bin/env node
-import('../dist/src/cli/main.js')
-  .then(({ main }) => main())
-  .catch((error) => {
-    process.stdout.write(`${JSON.stringify({ ok: false, error: { code: 'EXECUTION_FAILED', message: String(error) } })}\n`);
-    process.exitCode = 1;
-  });
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const MINIMUM_NODE_MAJOR = 20;
+const MINIMUM_NODE_MINOR = 11;
+
+function fail(code, message, nextAction) {
+  process.stdout.write(`${JSON.stringify({ ok: false, error: { code, message, recoverable: true, nextAction } })}\n`);
+  process.exitCode = 1;
+}
+
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const [major, minor] = process.versions.node.split('.').map(Number);
+
+if (major < MINIMUM_NODE_MAJOR || (major === MINIMUM_NODE_MAJOR && minor < MINIMUM_NODE_MINOR)) {
+  fail(
+    'UNSUPPORTED_NODE',
+    `Node ${process.versions.node} is too old; this skill needs >= ${MINIMUM_NODE_MAJOR}.${MINIMUM_NODE_MINOR}.`,
+    'Install a newer Node (for example via nvm or Homebrew) and run the command again.',
+  );
+} else {
+  const entry = join(root, 'dist', 'src', 'cli', 'main.js');
+  if (!existsSync(entry)) {
+    // A fresh clone has no dist/, and the bare ERR_MODULE_NOT_FOUND that used to
+    // surface here named a path but never the fix.
+    fail(
+      'NOT_BUILT',
+      `The skill is not built: ${entry} does not exist.`,
+      `Run: cd "${root}" && npm install && npm run build`,
+    );
+  } else {
+    try {
+      const { main } = await import(pathToFileURL(entry).href);
+      await main();
+    } catch (error) {
+      fail('EXECUTION_FAILED', String(error), 'Run illustrator-ai doctor to check the host, then retry.');
+    }
+  }
+}

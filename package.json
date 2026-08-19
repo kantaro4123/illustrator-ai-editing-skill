@@ -1,6 +1,9 @@
 {
   "name": "illustrator-ai-editing-skill",
   "version": "0.1.0",
+  "engines": {
+    "node": ">=20.11"
+  },
   "private": true,
   "type": "module",
   "bin": {
