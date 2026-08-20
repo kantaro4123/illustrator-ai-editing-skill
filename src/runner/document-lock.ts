@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdir, open, readFile, unlink, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, open, readFile, realpath, unlink, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { IllustratorError } from '../contracts/errors.js';
 
 export interface DocumentLockMetadata {
@@ -31,6 +31,15 @@ export interface AcquireDocumentLockInput {
   startedAt?: string;
 }
 
+export async function canonicalDocumentPath(documentPath: string): Promise<string> {
+  try {
+    return await realpath(documentPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return resolve(documentPath);
+    throw error;
+  }
+}
+
 function lockName(documentPath: string): string {
   return `${createHash('sha256').update(documentPath).digest('hex')}.lock.json`;
 }
@@ -43,9 +52,10 @@ export async function acquireDocumentLock(
   input: AcquireDocumentLockInput,
 ): Promise<DocumentLock> {
   await mkdir(input.rootDir, { recursive: true });
-  const path = join(input.rootDir, lockName(input.documentPath));
+  const canonicalPath = await canonicalDocumentPath(input.documentPath);
+  const path = join(input.rootDir, lockName(canonicalPath));
   const metadata: DocumentLockMetadata = {
-    documentPath: input.documentPath,
+    documentPath: canonicalPath,
     runId: input.runId,
     command: input.command,
     pid: input.pid ?? process.pid,
