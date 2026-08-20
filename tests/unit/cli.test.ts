@@ -47,6 +47,15 @@ describe('illustrator-ai CLI', () => {
     expect(parseArguments(['save', '/tmp/file.ai', '--confirm']).options.confirm).toBe(true);
   });
 
+  test('rejects the not-yet-supported new save role before touching the filesystem', () => {
+    expect(() => parseArguments(['save', '/tmp/new.ai', '--confirm', '--role', 'new'])).toThrow(
+      '--role new is not supported',
+    );
+    expect(() => parseArguments(['save', '/tmp/file.ai', '--confirm', '--role', 'other'])).toThrow(
+      '--role must be reference or working',
+    );
+  });
+
   test('routes every supported command through one JSON result contract', async () => {
     const commands = [
       'doctor',
