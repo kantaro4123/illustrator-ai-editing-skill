@@ -86,8 +86,12 @@ export function parseArguments(argv: string[]): ParsedArguments {
     if (!isAbsolute(options.script)) throw new Error('run requires an absolute script path.');
   }
   if (command === 'save' && options.role !== undefined) {
-    if (!['reference', 'working', 'new'].includes(String(options.role))) {
-      throw new Error('--role must be reference, working, or new.');
+    const role = String(options.role);
+    if (role === 'new') {
+      throw new Error('--role new is not supported by save; create or select the new working file first, then save it as --role working.');
+    }
+    if (!['reference', 'working'].includes(role)) {
+      throw new Error('--role must be reference or working.');
     }
   }
   return { command, positionals, options };
