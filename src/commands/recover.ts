@@ -2,7 +2,7 @@ import { readdir, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { DoctorState } from './doctor.js';
-import { diagnoseDocumentLock } from '../runner/document-lock.js';
+import { canonicalDocumentPath, diagnoseDocumentLock } from '../runner/document-lock.js';
 import { readTransactionMarker } from '../runner/temp-files.js';
 
 export interface RecoveryInput {
@@ -59,7 +59,9 @@ export async function collectRecoveryEvidence(options: {
   const tempRoot = options.tempRoot ?? tmpdir();
   const lockRoot = options.lockRoot ?? join(tempRoot, 'illustrator-ai-locks');
   const isProcessAlive = options.isProcessAlive ?? defaultProcessAlive;
-  const scoped = options.documentPath;
+  const scoped = options.documentPath === undefined
+    ? undefined
+    : await canonicalDocumentPath(options.documentPath);
 
   const transactionEntries = await listDirectory(tempRoot);
   const preservedTransactions: string[] = [];
@@ -74,7 +76,7 @@ export async function collectRecoveryEvidence(options: {
       unclassifiedTransactions.push(path);
       continue;
     }
-    if (scoped !== undefined && marker.documentPath !== scoped) continue;
+    if (scoped !== undefined && await canonicalDocumentPath(marker.documentPath) !== scoped) continue;
     preservedTransactions.push(path);
   }
 
