@@ -70,6 +70,10 @@ export function parseArguments(argv: string[]): ParsedArguments {
     if (!positionals[0]) throw new Error(`${command} requires an absolute document path.`);
     if (!isAbsolute(positionals[0])) throw new Error('Document path must be an absolute path.');
   }
+  if (command === 'compare') {
+    if (!positionals[1]) throw new Error('compare requires absolute before and after image paths.');
+    if (!isAbsolute(positionals[1])) throw new Error('compare after image path must be an absolute path.');
+  }
   if (command === 'run' || command === 'save') {
     if (options.confirm !== true) {
       throw new Error(`${command} is a mutation and requires --confirm.`);
@@ -82,8 +86,12 @@ export function parseArguments(argv: string[]): ParsedArguments {
     if (!isAbsolute(options.script)) throw new Error('run requires an absolute script path.');
   }
   if (command === 'save' && options.role !== undefined) {
-    if (!['reference', 'working', 'new'].includes(String(options.role))) {
-      throw new Error('--role must be reference, working, or new.');
+    const role = String(options.role);
+    if (role === 'new') {
+      throw new Error('--role new is not supported by save; create or select the new working file first, then save it as --role working.');
+    }
+    if (!['reference', 'working'].includes(role)) {
+      throw new Error('--role must be reference or working.');
     }
   }
   return { command, positionals, options };

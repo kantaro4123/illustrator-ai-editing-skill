@@ -16,6 +16,18 @@ export interface DocumentCropInput {
 }
 
 export function documentBoundsToPixels(input: DocumentCropInput): PixelRectangle {
+  const numericValues = [
+    input.artboardTop,
+    input.artboardLeft,
+    input.dpi,
+    input.paddingPt ?? 0,
+    input.imageWidth,
+    input.imageHeight,
+    ...input.bounds,
+  ];
+  if (numericValues.some((value) => !Number.isFinite(value))) {
+    throw new Error('Crop geometry values must all be finite numbers.');
+  }
   if (
     input.bounds.length !== 4
     || input.bounds[2]! <= input.bounds[0]!
@@ -24,6 +36,9 @@ export function documentBoundsToPixels(input: DocumentCropInput): PixelRectangle
     throw new Error('Invalid Illustrator bounds: expected [left, top, right, bottom].');
   }
   if (!(input.dpi > 0)) throw new Error('DPI must be greater than zero.');
+  if (!(input.imageWidth > 0) || !(input.imageHeight > 0)) {
+    throw new Error('Rendered image dimensions must be greater than zero.');
+  }
 
   const scale = input.dpi / 72;
   const padding = input.paddingPt ?? 0;

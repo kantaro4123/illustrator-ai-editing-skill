@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { VERSION } from '../index.js';
-import { classifyDoctorState } from '../commands/doctor.js';
+import { classifyDoctorState, isRecoveredDocumentName } from '../commands/doctor.js';
 import { createInspectCommand } from '../commands/inspect.js';
-import { planRecovery } from '../commands/recover.js';
+import { collectRecoveryEvidence, planRecovery } from '../commands/recover.js';
 import { IllustratorError } from '../contracts/errors.js';
 import {
   failureResult,
@@ -22,7 +22,11 @@ import { buildComparisonInvocations } from '../render/compare.js';
 import { documentBoundsToPixels } from '../render/crop.js';
 import { buildCropInvocation, chooseRenderer, renderAi, type ProcessInvocation } from '../render/render.js';
 import { writeAppleScript } from '../runner/apple-script.js';
-import { acquireDocumentLock, releaseDocumentLock } from '../runner/document-lock.js';
+import {
+  acquireDocumentLock,
+  markDocumentLockAmbiguous,
+  releaseDocumentLock,
+} from '../runner/document-lock.js';
 import { SerializedIllustratorExecutor } from '../runner/executor.js';
 import { buildJsx } from '../runner/jsx-builder.js';
 import {
@@ -31,6 +35,7 @@ import {
   readJsonResult,
   writeJsx,
   writeParams,
+  writeTransactionMarker,
   type TransactionFiles,
 } from '../runner/temp-files.js';
 import { COMMANDS, parseArguments, type CommandName, type ParsedArguments } from './arguments.js';
@@ -107,16 +112,27 @@ function documentIdentity(path: string): { path: string; name: string } {
   return { path, name: basename(path) };
 }
 
+function shouldKeepMutationLock(error: unknown): boolean {
+  return error instanceof IllustratorError && error.code === 'MUTATION_TIMEOUT_AMBIGUOUS';
+}
+
 async function runIllustratorTransaction(input: {
   targetPath: string;
+  command: string;
   mutation: boolean;
   timeoutMs: number;
   build: (files: TransactionFiles) => Promise<{ params: unknown; jsx: string }>;
   runtime: RuntimeDependencies;
 }): Promise<{ runId: string; value: unknown; transactionPath: string }> {
   const files = await createTransactionFiles();
+  // Only a failed mutation is ambiguous evidence worth keeping. Preserving every
+  // failure filled the temp directory with read-only debris that recovery then
+  // reported as unresolved mutations forever.
   let preserve = false;
   try {
+    await writeTransactionMarker(files, {
+      documentPath: input.targetPath, command: input.command, mutation: input.mutation,
+    });
     const command = await input.build(files);
     await writeParams(files, command.params);
     await writeJsx(files, command.jsx);
@@ -138,7 +154,7 @@ async function runIllustratorTransaction(input: {
     });
     return { runId: files.id, value, transactionPath: files.directory };
   } catch (error) {
-    preserve = true;
+    preserve = input.mutation;
     throw error;
   } finally {
     await cleanupTransaction(files, { preserve });
@@ -163,6 +179,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     const timeoutMs = numberOption(arguments_, 'timeout', 180) * 1000;
     const executed = await runIllustratorTransaction({
       targetPath,
+      command: 'inspect',
       mutation: false,
       timeoutMs,
       runtime,
@@ -239,6 +256,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     const lock = await acquireDocumentLock({
       rootDir: join(tmpdir(), 'illustrator-ai-locks'), documentPath: targetPath, runId, command: 'run',
     });
+    let releaseLock = true;
     try {
       const backup = await createBackup(targetPath);
       // Only supply the default result when the script did not write its own.
@@ -247,6 +265,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
         + 'if (!File(RESULT_PATH).exists) writeResultFile(RESULT_PATH, { ok: true, applied: true });';
       const executed = await runIllustratorTransaction({
         targetPath,
+        command: 'run',
         mutation: true,
         timeoutMs,
         runtime,
@@ -266,8 +285,12 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
         data: executed.value,
         artifacts: [{ kind: 'backup', path: backup.path, sha256: backup.backupSha256 }],
       });
+    } catch (error) {
+      releaseLock = !shouldKeepMutationLock(error);
+      if (!releaseLock) await markDocumentLockAmbiguous(lock);
+      throw error;
     } finally {
-      await releaseDocumentLock(lock, runId);
+      if (releaseLock) await releaseDocumentLock(lock, runId);
     }
   };
 
@@ -275,23 +298,24 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     const targetPath = arguments_.positionals[0]!;
     const timeoutMs = numberOption(arguments_, 'timeout', 180) * 1000;
     const runId = randomUUID();
-    const fingerprint = await fingerprintFile(targetPath);
     const targetRole = (stringOption(arguments_, 'role') ?? 'working') as DocumentRole;
-    const manifest = createTransactionManifest({
-      runId, targetPath, targetRole, targetFingerprint: fingerprint,
-      reviewRound: Number(stringOption(arguments_, 'reviewRound') ?? '1'),
-    });
-    if (targetRole === 'reference') assertSaveAllowed(manifest, targetPath);
-    const backup = targetRole === 'working' ? await createBackup(targetPath) : undefined;
-    if (backup) manifest.backup = backup;
-    assertSaveAllowed(manifest, targetPath);
     const lock = await acquireDocumentLock({
       rootDir: join(tmpdir(), 'illustrator-ai-locks'), documentPath: targetPath, runId, command: 'save',
     });
+    let releaseLock = true;
     try {
+      const fingerprint = await fingerprintFile(targetPath);
+      const manifest = createTransactionManifest({
+        runId, targetPath, targetRole, targetFingerprint: fingerprint,
+        reviewRound: Number(stringOption(arguments_, 'reviewRound') ?? '1'),
+      });
+      if (targetRole === 'reference') assertSaveAllowed(manifest, targetPath);
+      const backup = targetRole === 'working' ? await createBackup(targetPath) : undefined;
+      if (backup) manifest.backup = backup;
+      assertSaveAllowed(manifest, targetPath);
       const commandSource = await readFile(new URL('../jsx/commands/save.jsx', import.meta.url), 'utf8');
       const executed = await runIllustratorTransaction({
-        targetPath, mutation: true, timeoutMs, runtime,
+        targetPath, command: 'save', mutation: true, timeoutMs, runtime,
         build: async (files) => ({
           params: { destinationPath: targetPath },
           jsx: await buildJsx({ commandSource, paramsPath: files.paramsPath, resultPath: files.resultPath,
@@ -303,8 +327,12 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
         data: executed.value,
         artifacts: backup ? [{ kind: 'backup', path: backup.path, sha256: backup.backupSha256 }] : [],
       });
+    } catch (error) {
+      releaseLock = !shouldKeepMutationLock(error);
+      if (!releaseLock) await markDocumentLockAmbiguous(lock);
+      throw error;
     } finally {
-      await releaseDocumentLock(lock, runId);
+      if (releaseLock) await releaseDocumentLock(lock, runId);
     }
   };
 
@@ -360,14 +388,36 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     ...arguments_, command: 'verify', options: { ...arguments_.options, detail: 'full' },
   });
 
-  handlers.recover = async () => {
+  handlers.recover = async (arguments_) => {
     const doctor = await handlers.doctor({ command: 'doctor', positionals: [], options: {} });
-    const state = doctor.ok && typeof doctor.data === 'object' && doctor.data !== null && 'state' in doctor.data
-      ? String((doctor.data as { state: unknown }).state)
-      : 'MODAL_OR_UNRESPONSIVE';
-    const plan = planRecovery({ doctorState: state as Parameters<typeof planRecovery>[0]['doctorState'],
-      ambiguousTransactions: [], recoveredDocuments: [] });
-    return successResult({ command: 'recover', runId: randomUUID(), data: { state, plan } });
+    const doctorData = doctor.ok && typeof doctor.data === 'object' && doctor.data !== null
+      ? doctor.data as { state?: unknown; documents?: unknown }
+      : {};
+    const state = doctorData.state === undefined ? 'MODAL_OR_UNRESPONSIVE' : String(doctorData.state);
+    const documents = Array.isArray(doctorData.documents)
+      ? doctorData.documents.filter((document): document is { name: string; path: string } => (
+          typeof document === 'object'
+          && document !== null
+          && typeof (document as { name?: unknown }).name === 'string'
+          && typeof (document as { path?: unknown }).path === 'string'
+        ))
+      : [];
+    const recoveredDocuments = documents
+      .filter((document) => isRecoveredDocumentName(document.name))
+      .map((document) => document.path || document.name);
+    const scope = arguments_.positionals[0];
+    const evidence = await collectRecoveryEvidence(scope ? { documentPath: scope } : {});
+    const plan = planRecovery({
+      doctorState: state as Parameters<typeof planRecovery>[0]['doctorState'],
+      ambiguousTransactions: evidence.ambiguousTransactions,
+      ambiguousLocks: evidence.ambiguousLocks,
+      recoveredDocuments,
+    });
+    return successResult({
+      command: 'recover',
+      runId: randomUUID(),
+      data: { state, recoveredDocuments, ...evidence, plan },
+    });
   };
   return handlers;
 }

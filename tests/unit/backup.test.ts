@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -32,5 +32,22 @@ describe('Illustrator document backups', () => {
     expect(second.path).not.toBe(first.path);
     expect(await readFile(first.path, 'utf8')).toBe('first');
     expect(await readFile(second.path, 'utf8')).toBe('second');
+  });
+
+  test('discards the backup if the source changes during backup creation', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'illustrator-backup-race-test-'));
+    const source = join(root, 'working.ai');
+    await writeFile(source, 'before', 'utf8');
+
+    await expect(
+      createBackup(source, {
+        now: new Date('2026-07-14T01:02:03.000Z'),
+        afterCopy: async () => {
+          await writeFile(source, 'after', 'utf8');
+        },
+      }),
+    ).rejects.toThrow('Source changed while backup was being created');
+
+    expect(await readdir(root)).toEqual(['working.ai']);
   });
 });

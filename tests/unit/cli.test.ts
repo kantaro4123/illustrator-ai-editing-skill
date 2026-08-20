@@ -27,6 +27,15 @@ describe('illustrator-ai CLI', () => {
     expect(() => parseArguments(['inspect', 'relative.ai'])).toThrow('absolute path');
   });
 
+  test('requires both compare inputs to be absolute paths', () => {
+    expect(() => parseArguments(['compare', '/tmp/before.png'])).toThrow('before and after');
+    expect(() => parseArguments(['compare', '/tmp/before.png', 'after.png'])).toThrow('absolute');
+    expect(parseArguments(['compare', '/tmp/before.png', '/tmp/after.png']).positionals).toEqual([
+      '/tmp/before.png',
+      '/tmp/after.png',
+    ]);
+  });
+
   test('requires explicit confirmation and an absolute script for mutations', () => {
     expect(() => parseArguments(['run', '/tmp/file.ai', '--script', '/tmp/edit.jsx'])).toThrow(
       '--confirm',
@@ -36,6 +45,15 @@ describe('illustrator-ai CLI', () => {
     );
     expect(() => parseArguments(['save', '/tmp/file.ai'])).toThrow('--confirm');
     expect(parseArguments(['save', '/tmp/file.ai', '--confirm']).options.confirm).toBe(true);
+  });
+
+  test('rejects the not-yet-supported new save role before touching the filesystem', () => {
+    expect(() => parseArguments(['save', '/tmp/new.ai', '--confirm', '--role', 'new'])).toThrow(
+      '--role new is not supported',
+    );
+    expect(() => parseArguments(['save', '/tmp/file.ai', '--confirm', '--role', 'other'])).toThrow(
+      '--role must be reference or working',
+    );
   });
 
   test('routes every supported command through one JSON result contract', async () => {
@@ -67,9 +85,11 @@ describe('illustrator-ai CLI', () => {
         ? [command, '/tmp/file.ai', '--script', '/tmp/edit.jsx', '--confirm']
         : command === 'save'
           ? [command, '/tmp/file.ai', '--confirm']
-          : ['doctor', 'recover'].includes(command)
-            ? [command]
-            : [command, '/tmp/file.ai'];
+          : command === 'compare'
+            ? [command, '/tmp/before.png', '/tmp/after.png']
+            : ['doctor', 'recover'].includes(command)
+              ? [command]
+              : [command, '/tmp/file.ai'];
       const result = await runCli(argv, handlers);
       expect(result.exitCode).toBe(0);
       expect(JSON.parse(result.stdout)).toMatchObject({ ok: true, command });

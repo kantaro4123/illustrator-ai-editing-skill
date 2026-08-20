@@ -26,6 +26,23 @@ When a mutation times out:
 6. compare disk fingerprint and saved state;
 7. only then choose whether to save, restore, or apply a new transaction.
 
+`recover` reports this evidence and clears only what it can prove is debris:
+
+- **`ambiguousTransactions`** — preserved directories from failed *mutations* plus every
+  retained lock. Any entry sets `blockMutationRetry`. Read-only failures are not evidence and
+  never appear here; treating them as evidence made the block permanent and taught the agent
+  to ignore it.
+- **`ambiguousLocks`** — locks deliberately kept after a timeout. They are never auto-cleared.
+  The owning CLI is already dead by the time recovery runs, so a liveness probe alone would
+  delete the very warning the timeout raised. Resolve one only after confirming what
+  Illustrator did with the edit.
+- **`staleLocksCleared`** — ordinary locks whose owner died without an ambiguous timeout.
+- **`unclassifiedTransactions`** — directories with no marker. Reported for visibility, never
+  blocking.
+
+Pass a document path (`recover /absolute/working.ai`) to scope the sweep; unrelated documents
+otherwise contribute evidence that has nothing to do with the file in hand.
+
 ## Recovered documents
 
 Verify a known edit and the exact intended target before choosing a recovered document. Back up

@@ -33,6 +33,10 @@ run ID. An existing lock blocks mutation until `recover` diagnoses its owner. Ne
 lock solely because it is old; first determine whether Illustrator or the owning process is
 still executing.
 
+A lock kept after an ambiguous mutation timeout also records why it was kept. `recover` clears
+locks whose owner merely died, but never those, because the dead owner is the expected state
+after a timeout and says nothing about whether Illustrator finished the edit.
+
 Read operations may be retried only when the error marks them safe. A timed-out mutation may
 have completed after the caller stopped waiting, so preserve its transaction directory and
 inspect both the sidecar and document state.

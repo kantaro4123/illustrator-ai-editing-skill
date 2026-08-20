@@ -13,6 +13,21 @@ export interface TransactionFiles {
   scriptPath: string;
   runnerPath: string;
   resultPath: string;
+  markerPath: string;
+}
+
+/**
+ * Written before the host call so a preserved directory can state what it was.
+ * Recovery treats only mutation markers as ambiguous evidence; without this a
+ * directory left by any failure is indistinguishable from an interrupted save.
+ */
+export interface TransactionMarker {
+  id: string;
+  documentPath: string;
+  command: string;
+  mutation: boolean;
+  pid: number;
+  startedAt: string;
 }
 
 export interface CreateTransactionOptions {
@@ -36,7 +51,35 @@ export async function createTransactionFiles(
     scriptPath: join(directory, `script-${id}.jsx`),
     runnerPath: join(directory, `run-${id}.scpt`),
     resultPath: join(directory, `result-${id}.json`),
+    markerPath: join(directory, 'transaction.json'),
   };
+}
+
+export async function writeTransactionMarker(
+  files: TransactionFiles,
+  marker: Omit<TransactionMarker, 'id' | 'pid' | 'startedAt'>
+    & Partial<Pick<TransactionMarker, 'pid' | 'startedAt'>>,
+): Promise<void> {
+  const record: TransactionMarker = {
+    id: files.id,
+    documentPath: marker.documentPath,
+    command: marker.command,
+    mutation: marker.mutation,
+    pid: marker.pid ?? process.pid,
+    startedAt: marker.startedAt ?? new Date().toISOString(),
+  };
+  await writeFile(files.markerPath, JSON.stringify(record), 'utf8');
+}
+
+export async function readTransactionMarker(directory: string): Promise<TransactionMarker | undefined> {
+  try {
+    const raw = await readFile(join(directory, 'transaction.json'), 'utf8');
+    const parsed = JSON.parse(raw) as Partial<TransactionMarker>;
+    if (typeof parsed.documentPath !== 'string' || typeof parsed.mutation !== 'boolean') return undefined;
+    return parsed as TransactionMarker;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function writeParams(files: TransactionFiles, params: unknown): Promise<void> {

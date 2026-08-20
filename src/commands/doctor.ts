@@ -14,10 +14,19 @@ export interface DoctorProbe {
   documents: Array<{ name: string; path: string }>;
 }
 
+/**
+ * Illustrator titles an auto-recovered document with a "[Recovered]" suffix.
+ * Localized builds may use a translated suffix, so a negative result is not
+ * proof that no recovered document is open.
+ */
+export function isRecoveredDocumentName(name: string): boolean {
+  return name.toLowerCase().includes('[recovered]');
+}
+
 export function classifyDoctorState(probe: DoctorProbe): DoctorState {
   if (!probe.processRunning) return 'NOT_RUNNING';
   if (!probe.responsive) return 'MODAL_OR_UNRESPONSIVE';
-  if (probe.documents.some((document) => document.name.toLowerCase().includes('[recovered]'))) {
+  if (probe.documents.some((document) => isRecoveredDocumentName(document.name))) {
     return 'RECOVERED_DOCUMENT_PRESENT';
   }
   if (probe.documents.length === 0) return 'RESPONSIVE_NO_DOCUMENTS';

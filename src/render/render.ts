@@ -1,6 +1,6 @@
-import { copyFile, mkdtemp, rename, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, dirname, extname, join } from 'node:path';
+import { basename, extname, join } from 'node:path';
 import type { PixelRectangle } from './crop.js';
 
 export type Renderer = 'pdftoppm' | 'sips';
@@ -62,7 +62,10 @@ export function buildCropInvocation(input: {
 export interface RenderResult {
   path: string;
   renderer: Renderer;
-  dpi: number;
+  /** Requested DPI. Only Poppler guarantees that rasterization density. */
+  requestedDpi: number;
+  /** Effective DPI when the renderer can guarantee it; otherwise null. */
+  dpi: number | null;
 }
 
 export async function renderAi(input: {
@@ -85,9 +88,16 @@ export async function renderAi(input: {
   try {
     await input.run(invocation);
     const generated = input.renderer === 'pdftoppm' ? `${prefix}-1.png` : `${prefix}.png`;
-    await rename(generated, input.outputPath);
+    // copyFile works across filesystems; rename() fails with EXDEV when output is
+    // on another volume (a common production setup with external SSDs/NAS mounts).
+    await copyFile(generated, input.outputPath);
   } finally {
     await rm(transaction, { recursive: true, force: true });
   }
-  return { path: input.outputPath, renderer: input.renderer, dpi: input.dpi };
+  return {
+    path: input.outputPath,
+    renderer: input.renderer,
+    requestedDpi: input.dpi,
+    dpi: input.renderer === 'pdftoppm' ? input.dpi : null,
+  };
 }

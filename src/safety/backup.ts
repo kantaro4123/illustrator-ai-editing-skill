@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { constants, copyFile } from 'node:fs/promises';
+import { constants, copyFile, unlink } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 
 export interface BackupEvidence {
@@ -35,7 +35,7 @@ function timestamp(date: Date): string {
 
 export async function createBackup(
   sourcePath: string,
-  options: { now?: Date } = {},
+  options: { now?: Date; afterCopy?: (backupPath: string) => Promise<void> } = {},
 ): Promise<BackupEvidence> {
   const now = options.now ?? new Date();
   const extension = extname(sourcePath);
@@ -55,10 +55,19 @@ export async function createBackup(
     }
   }
 
+  await options.afterCopy?.(backupPath);
   const [sourceSha256, backupSha256] = await Promise.all([
     fingerprintFile(sourcePath),
     fingerprintFile(backupPath),
   ]);
+  if (sourceSha256 !== backupSha256) {
+    try {
+      await unlink(backupPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    throw new Error('Source changed while backup was being created; inconsistent backup discarded.');
+  }
   return {
     path: backupPath,
     sourceSha256,
