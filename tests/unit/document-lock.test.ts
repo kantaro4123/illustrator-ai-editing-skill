@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -42,6 +42,31 @@ describe('per-document mutation lock', () => {
         command: 'save',
       }),
     ).rejects.toMatchObject({ code: 'DOCUMENT_LOCKED' } satisfies Partial<IllustratorError>);
+  });
+
+  test('treats symlink aliases as the same document', async () => {
+    const root = await tempRoot();
+    const documentPath = join(root, 'working.ai');
+    const aliasPath = join(root, 'working-link.ai');
+    await writeFile(documentPath, 'synthetic ai', 'utf8');
+    await symlink(documentPath, aliasPath);
+
+    const first = await acquireDocumentLock({
+      rootDir: join(root, 'locks'),
+      documentPath,
+      runId: 'run-real',
+      command: 'run',
+    });
+
+    await expect(
+      acquireDocumentLock({
+        rootDir: join(root, 'locks'),
+        documentPath: aliasPath,
+        runId: 'run-alias',
+        command: 'save',
+      }),
+    ).rejects.toMatchObject({ code: 'DOCUMENT_LOCKED' } satisfies Partial<IllustratorError>);
+    await releaseDocumentLock(first, 'run-real');
   });
 
   test('allows different documents to be locked independently', async () => {
