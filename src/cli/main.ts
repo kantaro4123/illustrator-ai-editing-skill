@@ -1,11 +1,11 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { VERSION } from '../index.js';
 import { classifyDoctorState, isRecoveredDocumentName } from '../commands/doctor.js';
-import { createInspectCommand } from '../commands/inspect.js';
+import { createInspectCommand, type InspectionContentMode } from '../commands/inspect.js';
 import { collectRecoveryEvidence, planRecovery } from '../commands/recover.js';
 import { IllustratorError } from '../contracts/errors.js';
 import {
@@ -20,7 +20,14 @@ import { assertSaveAllowed, createTransactionManifest, type DocumentRole } from 
 import { buildDoctorAppleScript } from '../platform/macos.js';
 import { buildComparisonInvocations } from '../render/compare.js';
 import { documentBoundsToPixels } from '../render/crop.js';
-import { buildCropInvocation, chooseRenderer, renderAi, type ProcessInvocation } from '../render/render.js';
+import {
+  buildCropInvocation,
+  chooseRenderer,
+  renderAi,
+  renderMetadataPath,
+  resolveCropDpi,
+  type ProcessInvocation,
+} from '../render/render.js';
 import { writeAppleScript } from '../runner/apple-script.js';
 import {
   acquireDocumentLock,
@@ -83,16 +90,19 @@ const HELP = `illustrator-ai ${VERSION}
 
 Usage:
   illustrator-ai doctor
-  illustrator-ai inspect /absolute/path/document.ai [--detail full]
+  illustrator-ai inspect /absolute/path/document.ai [--detail full] [--content none|truncated|full] [--link-paths]
   illustrator-ai backup /absolute/path/document.ai
-  illustrator-ai run /absolute/path/document.ai --script /absolute/path/edit.jsx
-  illustrator-ai save /absolute/path/document.ai
-  illustrator-ai render /absolute/path/document.ai [--output preview.png]
-  illustrator-ai crop /absolute/path/document.ai [options]
-  illustrator-ai compare /absolute/path/before.png /absolute/path/after.png
+  illustrator-ai run /absolute/path/document.ai --script /absolute/path/edit.jsx --confirm
+  illustrator-ai save /absolute/path/document.ai --confirm
+  illustrator-ai render /absolute/path/document.ai [--output preview.png] [--force]
+  illustrator-ai crop /absolute/path/render.png --output crop.png --bounds left,top,right,bottom [--force]
+  illustrator-ai compare /absolute/path/before.png /absolute/path/after.png [--force]
   illustrator-ai verify /absolute/path/document.ai
   illustrator-ai recover
 
+Inspection truncates text and redacts linked absolute paths by default.
+Crop uses matching render metadata; unverified manual DPI requires both --dpi and --allow-unverified-dpi.
+Review artifacts never overwrite existing files unless --force is supplied.
 All command results are emitted as one JSON object on stdout.
 `;
 
@@ -106,6 +116,54 @@ function numberOption(arguments_: ParsedArguments, name: string, fallback: numbe
   const value = raw === undefined ? fallback : Number(raw);
   if (!Number.isFinite(value) || value <= 0) throw new Error(`--${name} must be greater than zero.`);
   return value;
+}
+
+function optionalNumberOption(arguments_: ParsedArguments, name: string): number | undefined {
+  const raw = stringOption(arguments_, name);
+  if (raw === undefined) return undefined;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`--${name} must be greater than zero.`);
+  return value;
+}
+
+function booleanFlag(arguments_: ParsedArguments, name: string): boolean {
+  const value = arguments_.options[name];
+  if (value === undefined) return false;
+  if (value !== true) throw new Error(`--${name} is a flag and does not take a value.`);
+  return true;
+}
+
+function inspectionContentOption(arguments_: ParsedArguments): InspectionContentMode {
+  const raw = arguments_.options.content;
+  if (raw === undefined) return 'truncated';
+  if (typeof raw !== 'string' || !['none', 'truncated', 'full'].includes(raw)) {
+    throw new Error('--content must be none, truncated, or full.');
+  }
+  return raw as InspectionContentMode;
+}
+
+// Refusing to clobber is a policy decision, so make it here. Delegating it to the
+// renderer hid the refusal: ffmpeg's -n declines the write but still exits 0, so
+// crop and compare reported success while leaving the previous image in place.
+async function assertWritableOutputs(paths: string[], overwrite: boolean): Promise<void> {
+  if (overwrite) return;
+  const existing: string[] = [];
+  for (const candidate of paths) {
+    try {
+      await access(candidate);
+      existing.push(candidate);
+    } catch {
+      // Absent is the expected case.
+    }
+  }
+  if (existing.length === 0) return;
+  throw new IllustratorError({
+    code: 'OUTPUT_EXISTS',
+    message: `Refusing to overwrite an existing review artifact: ${existing.join(', ')}`,
+    recoverable: true,
+    safeToRetry: false,
+    nextAction: 'Re-run with --force to replace it, or pass a new --output path to keep both.',
+  });
 }
 
 function documentIdentity(path: string): { path: string; name: string } {
@@ -174,6 +232,7 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
   const inspect: CommandHandler = async (arguments_) => {
     const targetPath = arguments_.positionals[0]!;
     const detail = stringOption(arguments_, 'detail') === 'full' ? 'full' : 'compact';
+    const content = inspectionContentOption(arguments_);
     // Opening a large production file (25MB+) inside the JSX takes well over a
     // minute on its own; 60s produced false ILLUSTRATOR_UNRESPONSIVE reports.
     const timeoutMs = numberOption(arguments_, 'timeout', 180) * 1000;
@@ -187,6 +246,9 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
         targetPath,
         targetName: basename(targetPath),
         detail,
+        content,
+        maxContentCharacters: numberOption(arguments_, 'maxContentCharacters', 240),
+        includeLinkPaths: booleanFlag(arguments_, 'linkPaths'),
         maxStyleCharacters: numberOption(arguments_, 'maxStyleCharacters', 1000),
         paramsPath: files.paramsPath,
         resultPath: files.resultPath,
@@ -344,10 +406,26 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     for (const executable of ['pdftoppm', 'sips']) {
       if (await runtime.executableAvailable(executable)) available.add(executable);
     }
-    const rendered = await renderAi({ inputPath, outputPath, dpi: numberOption(arguments_, 'dpi', 144),
-      renderer: chooseRenderer(available), run: async (invocation) => { await runtime.runProcess(invocation); } });
-    return successResult({ command: 'render', runId: randomUUID(), document: documentIdentity(inputPath),
-      data: rendered, artifacts: [{ kind: 'render', path: rendered.path }] });
+    const forceRender = booleanFlag(arguments_, 'force');
+    await assertWritableOutputs([outputPath, renderMetadataPath(outputPath)], forceRender);
+    const rendered = await renderAi({
+      inputPath,
+      outputPath,
+      dpi: numberOption(arguments_, 'dpi', 144),
+      renderer: chooseRenderer(available),
+      overwrite: forceRender,
+      run: async (invocation) => { await runtime.runProcess(invocation); },
+    });
+    return successResult({
+      command: 'render',
+      runId: randomUUID(),
+      document: documentIdentity(inputPath),
+      data: rendered,
+      artifacts: [
+        { kind: 'render', path: rendered.path, sha256: rendered.imageSha256 },
+        { kind: 'render-metadata', path: rendered.metadataPath },
+      ],
+    });
   };
 
   handlers.crop = async (arguments_) => {
@@ -356,18 +434,37 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     const rawBounds = stringOption(arguments_, 'bounds');
     if (!outputPath || !rawBounds) throw new Error('crop requires --output and --bounds left,top,right,bottom.');
     const bounds = rawBounds.split(',').map(Number);
+    const cropDpi = await resolveCropDpi({
+      imagePath: inputPath,
+      ...(stringOption(arguments_, 'renderMetadata') ? { metadataPath: stringOption(arguments_, 'renderMetadata')! } : {}),
+      ...(optionalNumberOption(arguments_, 'dpi') !== undefined ? { explicitDpi: optionalNumberOption(arguments_, 'dpi') } : {}),
+      allowUnverifiedDpi: booleanFlag(arguments_, 'allowUnverifiedDpi'),
+    });
     const rectangle = documentBoundsToPixels({
       artboardTop: Number(stringOption(arguments_, 'artboardTop') ?? '0'),
       artboardLeft: Number(stringOption(arguments_, 'artboardLeft') ?? '0'),
-      dpi: numberOption(arguments_, 'dpi', 144), bounds,
+      dpi: cropDpi.dpi,
+      bounds,
       paddingPt: Number(stringOption(arguments_, 'padding') ?? '0'),
       imageWidth: numberOption(arguments_, 'imageWidth', 10000),
       imageHeight: numberOption(arguments_, 'imageHeight', 10000),
     });
-    await runtime.runProcess(buildCropInvocation({ executable: 'ffmpeg', inputPath, outputPath,
-      rectangle, upscale: numberOption(arguments_, 'upscale', 1) }));
-    return successResult({ command: 'crop', runId: randomUUID(), data: { path: outputPath, rectangle },
-      artifacts: [{ kind: 'crop', path: outputPath }] });
+    const forceCrop = booleanFlag(arguments_, 'force');
+    await assertWritableOutputs([outputPath], forceCrop);
+    await runtime.runProcess(buildCropInvocation({
+      executable: 'ffmpeg',
+      inputPath,
+      outputPath,
+      rectangle,
+      upscale: numberOption(arguments_, 'upscale', 1),
+      overwrite: forceCrop,
+    }));
+    return successResult({
+      command: 'crop',
+      runId: randomUUID(),
+      data: { path: outputPath, rectangle, dpi: cropDpi.dpi, dpiVerified: cropDpi.verified },
+      artifacts: [{ kind: 'crop', path: outputPath }],
+    });
   };
 
   handlers.compare = async (arguments_) => {
@@ -377,7 +474,13 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     const outputDirectory = stringOption(arguments_, 'outputDir') ?? dirname(afterPath);
     const overlayPath = join(outputDirectory, 'overlay.png');
     const differencePath = join(outputDirectory, 'difference.png');
-    for (const invocation of buildComparisonInvocations({ beforePath, afterPath, overlayPath, differencePath })) {
+    const overwrite = booleanFlag(arguments_, 'force');
+    // Both destinations are checked before either is written, so a half-replaced
+    // pair from different generations can never be produced.
+    await assertWritableOutputs([overlayPath, differencePath], overwrite);
+    for (const invocation of buildComparisonInvocations({
+      beforePath, afterPath, overlayPath, differencePath, overwrite,
+    })) {
       await runtime.runProcess(invocation);
     }
     return successResult({ command: 'compare', runId: randomUUID(), data: { overlayPath, differencePath },
@@ -385,7 +488,13 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
   };
 
   handlers.verify = async (arguments_) => inspect({
-    ...arguments_, command: 'verify', options: { ...arguments_.options, detail: 'full' },
+    ...arguments_,
+    command: 'verify',
+    options: {
+      ...arguments_.options,
+      detail: 'full',
+      ...(arguments_.options.content === undefined ? { content: 'none' } : {}),
+    },
   });
 
   handlers.recover = async (arguments_) => {

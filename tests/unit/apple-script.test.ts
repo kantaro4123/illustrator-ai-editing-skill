@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -31,7 +31,7 @@ describe('AppleScript bridge', () => {
     );
   });
 
-  test('writes the bridge into the transaction runner file', async () => {
+  test('writes the bridge into a private transaction runner file', async () => {
     const root = await mkdtemp(join(tmpdir(), 'illustrator-ai-test-'));
     const files = await createTransactionFiles({
       rootDir: root,
@@ -39,5 +39,6 @@ describe('AppleScript bridge', () => {
     });
     await writeAppleScript(files, { timeoutSeconds: 45 });
     expect(await readFile(files.runnerPath, 'utf8')).toContain('with timeout of 45 seconds');
+    expect((await stat(files.runnerPath)).mode & 0o777).toBe(0o600);
   });
 });

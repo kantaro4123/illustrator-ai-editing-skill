@@ -5,8 +5,9 @@ export function buildComparisonInvocations(input: {
   afterPath: string;
   overlayPath: string;
   differencePath: string;
+  overwrite: boolean;
 }): ProcessInvocation[] {
-  const common = ['-y', '-loglevel', 'error', '-i', input.beforePath, '-i', input.afterPath];
+  const common = [input.overwrite ? '-y' : '-n', '-loglevel', 'error', '-i', input.beforePath, '-i', input.afterPath];
   return [
     {
       executable: 'ffmpeg',

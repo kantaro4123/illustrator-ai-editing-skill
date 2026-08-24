@@ -14,6 +14,7 @@ describe('repository publication safety', () => {
       '*.out',
       '*.png',
       '*.log',
+      '*.illustrator-ai.json',
       '.DS_Store',
       '.illustrator-ai/',
       'transactions/',
@@ -29,7 +30,7 @@ describe('repository publication safety', () => {
     expect(attributes).toContain('*.ai binary');
   });
 
-  test('ships an executable prepublication gate', async () => {
+  test('ships an executable prepublication gate that rejects render sidecars', async () => {
     const script = new URL('scripts/prepublish-check.sh', root);
     await expect(access(script, constants.X_OK)).resolves.toBeUndefined();
     const packageJson = JSON.parse(await readFile(new URL('package.json', root), 'utf8')) as {
@@ -39,5 +40,6 @@ describe('repository publication safety', () => {
     const source = await readFile(script, 'utf8');
     expect(source).toContain('git rev-list HEAD');
     expect(source).toContain("git log HEAD --format='%ae%n%ce'");
+    expect(source).toContain('*.illustrator-ai.json');
   });
 });

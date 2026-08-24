@@ -80,6 +80,24 @@ function inspectStyleRuns(frame, fullDetail) {
   return output;
 }
 
+function inspectTextContent(frame) {
+  var text = String(frame.contents);
+  var mode = inspectParams.content || "truncated";
+  var maxCharacters = Number(inspectParams.maxContentCharacters || 240);
+  if (mode === "none") {
+    return { contents: null, contentLength: text.length, contentsTruncated: text.length > 0 };
+  }
+  if (mode === "full") {
+    return { contents: text, contentLength: text.length, contentsTruncated: false };
+  }
+  if (!(maxCharacters > 0)) maxCharacters = 240;
+  return {
+    contents: text.substring(0, maxCharacters),
+    contentLength: text.length,
+    contentsTruncated: text.length > maxCharacters
+  };
+}
+
 var inspection = {
   document: {
     path: documentFsPath(inspectDocument),
@@ -122,11 +140,14 @@ for (inspectIndex = 0; inspectIndex < inspectDocument.textFrames.length; inspect
   var hasFullStyleBudget = frame.characters.length <= remainingStyleCharacters;
   var useFullStyle = wantsFullStyle && hasFullStyleBudget;
   if (useFullStyle) remainingStyleCharacters -= frame.characters.length;
+  var textContent = inspectTextContent(frame);
   inspection.textFrames.push({
     uuid: inspectUuid(frame),
     name: inspectName(frame),
     kind: String(frame.kind),
-    contents: frame.contents,
+    contents: textContent.contents,
+    contentLength: textContent.contentLength,
+    contentsTruncated: textContent.contentsTruncated,
     geometricBounds: inspectBounds(frame.geometricBounds),
     visibleBounds: inspectBounds(frame.visibleBounds),
     locked: frame.locked,
@@ -183,11 +204,16 @@ if (inspectParams.detail === "full") {
 for (inspectIndex = 0; inspectIndex < inspectDocument.placedItems.length; inspectIndex++) {
   var link = inspectDocument.placedItems[inspectIndex];
   var linkPath = "";
-  try { linkPath = link.file.fsName; } catch (linkError) {}
+  var linkName = "";
+  try {
+    linkPath = link.file.fsName;
+    try { linkName = decodeURI(link.file.name); } catch (decodeLinkError) { linkName = String(link.file.name); }
+  } catch (linkError) {}
   inspection.links.push({
     uuid: inspectUuid(link),
     name: inspectName(link),
-    path: linkPath,
+    filename: linkName,
+    path: inspectParams.includeLinkPaths ? linkPath : null,
     geometricBounds: inspectBounds(link.geometricBounds)
   });
 }

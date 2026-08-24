@@ -15,6 +15,7 @@ const requiredCategories = [
   'should-trigger',
   'should-not-trigger',
   'safety',
+  'security',
   'timeout',
   'wrong-document',
   'aspect-axis',

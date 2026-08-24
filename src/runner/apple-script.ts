@@ -32,5 +32,5 @@ export async function writeAppleScript(
   options: Omit<AppleScriptOptions, 'scriptPath'>,
 ): Promise<void> {
   const source = buildAppleScript({ ...options, scriptPath: files.scriptPath });
-  await writeFile(files.runnerPath, source, 'utf8');
+  await writeFile(files.runnerPath, source, { encoding: 'utf8', mode: 0o600 });
 }

@@ -14,7 +14,7 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "not a git worktree"
 
 git ls-files -z | while IFS= read -r -d '' path; do
   case "$path" in
-    *.ai|*.ait|*.eps|*.pdf|*.png|*.jpg|*.jpeg|*.tif|*.tiff|*.psd|*.bak|*.out|*.log|*.DS_Store|*_backup_*|*/transactions/*|*/.illustrator-ai/*)
+    *.ai|*.ait|*.eps|*.pdf|*.png|*.jpg|*.jpeg|*.tif|*.tiff|*.psd|*.bak|*.out|*.log|*.illustrator-ai.json|*.DS_Store|*_backup_*|*/transactions/*|*/.illustrator-ai/*)
       printf 'prepublish: forbidden tracked artifact: %s\n' "$path" >&2
       exit 42
       ;;

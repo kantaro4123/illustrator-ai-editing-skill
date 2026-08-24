@@ -1,10 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import { buildJsx } from '../runner/jsx-builder.js';
 
+export type InspectionContentMode = 'none' | 'truncated' | 'full';
+
 export interface InspectCommandInput {
   targetPath: string;
   targetName: string;
   detail: 'compact' | 'full';
+  content?: InspectionContentMode;
+  maxContentCharacters?: number;
+  includeLinkPaths?: boolean;
   maxStyleCharacters?: number;
   paramsPath: string;
   resultPath: string;
@@ -12,7 +17,13 @@ export interface InspectCommandInput {
 
 export async function createInspectCommand(input: InspectCommandInput): Promise<{
   mutation: false;
-  params: { detail: 'compact' | 'full'; maxStyleCharacters: number };
+  params: {
+    detail: 'compact' | 'full';
+    content: InspectionContentMode;
+    maxContentCharacters: number;
+    includeLinkPaths: boolean;
+    maxStyleCharacters: number;
+  };
   jsx: string;
 }> {
   const commandSource = await readFile(
@@ -21,7 +32,13 @@ export async function createInspectCommand(input: InspectCommandInput): Promise<
   );
   return {
     mutation: false,
-    params: { detail: input.detail, maxStyleCharacters: input.maxStyleCharacters ?? 1000 },
+    params: {
+      detail: input.detail,
+      content: input.content ?? 'truncated',
+      maxContentCharacters: input.maxContentCharacters ?? 240,
+      includeLinkPaths: input.includeLinkPaths ?? false,
+      maxStyleCharacters: input.maxStyleCharacters ?? 1000,
+    },
     jsx: await buildJsx({
       commandSource,
       paramsPath: input.paramsPath,

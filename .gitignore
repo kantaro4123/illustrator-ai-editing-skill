@@ -12,6 +12,7 @@ coverage/
 # Generated transactions, sidecars, logs, and visual review artifacts.
 .illustrator-ai/
 transactions/
+*.illustrator-ai.json
 *.out
 *.log
 *.png

@@ -5,6 +5,8 @@ import { join } from 'node:path';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UTF8_BOM = '\uFEFF';
+const PRIVATE_DIRECTORY_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
 
 export interface TransactionFiles {
   id: string;
@@ -42,7 +44,7 @@ export async function createTransactionFiles(
   if (!UUID_PATTERN.test(id)) throw new Error(`Invalid transaction ID: ${id}`);
 
   const directory = join(options.rootDir ?? tmpdir(), `illustrator-ai-${id}`);
-  await mkdir(directory, { recursive: false });
+  await mkdir(directory, { recursive: false, mode: PRIVATE_DIRECTORY_MODE });
 
   return {
     id,
@@ -68,7 +70,10 @@ export async function writeTransactionMarker(
     pid: marker.pid ?? process.pid,
     startedAt: marker.startedAt ?? new Date().toISOString(),
   };
-  await writeFile(files.markerPath, JSON.stringify(record), 'utf8');
+  await writeFile(files.markerPath, JSON.stringify(record), {
+    encoding: 'utf8',
+    mode: PRIVATE_FILE_MODE,
+  });
 }
 
 export async function readTransactionMarker(directory: string): Promise<TransactionMarker | undefined> {
@@ -83,11 +88,17 @@ export async function readTransactionMarker(directory: string): Promise<Transact
 }
 
 export async function writeParams(files: TransactionFiles, params: unknown): Promise<void> {
-  await writeFile(files.paramsPath, JSON.stringify(params ?? {}), 'utf8');
+  await writeFile(files.paramsPath, JSON.stringify(params ?? {}), {
+    encoding: 'utf8',
+    mode: PRIVATE_FILE_MODE,
+  });
 }
 
 export async function writeJsx(files: TransactionFiles, source: string): Promise<void> {
-  await writeFile(files.scriptPath, UTF8_BOM + source.replace(/^\uFEFF/, ''), 'utf8');
+  await writeFile(files.scriptPath, UTF8_BOM + source.replace(/^\uFEFF/, ''), {
+    encoding: 'utf8',
+    mode: PRIVATE_FILE_MODE,
+  });
 }
 
 export async function readJsonResult(files: TransactionFiles): Promise<unknown> {
