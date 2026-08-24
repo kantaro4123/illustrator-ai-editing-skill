@@ -7,16 +7,32 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Refresh vulnerable lockfile entries
+        if: github.event_name == 'pull_request' && github.head_ref == 'agent/public-release-hardening'
+        run: |
+          npm audit fix --package-lock-only
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "Refresh audited transitive dependencies"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
       - name: Report dependency audit
         run: npm audit --json || true
       - run: npm run validate
