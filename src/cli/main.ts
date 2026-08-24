@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { VERSION } from '../index.js';
@@ -24,6 +24,7 @@ import {
   buildCropInvocation,
   chooseRenderer,
   renderAi,
+  renderMetadataPath,
   resolveCropDpi,
   type ProcessInvocation,
 } from '../render/render.js';
@@ -139,6 +140,30 @@ function inspectionContentOption(arguments_: ParsedArguments): InspectionContent
     throw new Error('--content must be none, truncated, or full.');
   }
   return raw as InspectionContentMode;
+}
+
+// Refusing to clobber is a policy decision, so make it here. Delegating it to the
+// renderer hid the refusal: ffmpeg's -n declines the write but still exits 0, so
+// crop and compare reported success while leaving the previous image in place.
+async function assertWritableOutputs(paths: string[], overwrite: boolean): Promise<void> {
+  if (overwrite) return;
+  const existing: string[] = [];
+  for (const candidate of paths) {
+    try {
+      await access(candidate);
+      existing.push(candidate);
+    } catch {
+      // Absent is the expected case.
+    }
+  }
+  if (existing.length === 0) return;
+  throw new IllustratorError({
+    code: 'OUTPUT_EXISTS',
+    message: `Refusing to overwrite an existing review artifact: ${existing.join(', ')}`,
+    recoverable: true,
+    safeToRetry: false,
+    nextAction: 'Re-run with --force to replace it, or pass a new --output path to keep both.',
+  });
 }
 
 function documentIdentity(path: string): { path: string; name: string } {
@@ -381,12 +406,14 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     for (const executable of ['pdftoppm', 'sips']) {
       if (await runtime.executableAvailable(executable)) available.add(executable);
     }
+    const forceRender = booleanFlag(arguments_, 'force');
+    await assertWritableOutputs([outputPath, renderMetadataPath(outputPath)], forceRender);
     const rendered = await renderAi({
       inputPath,
       outputPath,
       dpi: numberOption(arguments_, 'dpi', 144),
       renderer: chooseRenderer(available),
-      overwrite: booleanFlag(arguments_, 'force'),
+      overwrite: forceRender,
       run: async (invocation) => { await runtime.runProcess(invocation); },
     });
     return successResult({
@@ -422,13 +449,15 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
       imageWidth: numberOption(arguments_, 'imageWidth', 10000),
       imageHeight: numberOption(arguments_, 'imageHeight', 10000),
     });
+    const forceCrop = booleanFlag(arguments_, 'force');
+    await assertWritableOutputs([outputPath], forceCrop);
     await runtime.runProcess(buildCropInvocation({
       executable: 'ffmpeg',
       inputPath,
       outputPath,
       rectangle,
       upscale: numberOption(arguments_, 'upscale', 1),
-      overwrite: booleanFlag(arguments_, 'force'),
+      overwrite: forceCrop,
     }));
     return successResult({
       command: 'crop',
@@ -446,6 +475,9 @@ export function createDefaultHandlers(runtime: RuntimeDependencies = defaultRunt
     const overlayPath = join(outputDirectory, 'overlay.png');
     const differencePath = join(outputDirectory, 'difference.png');
     const overwrite = booleanFlag(arguments_, 'force');
+    // Both destinations are checked before either is written, so a half-replaced
+    // pair from different generations can never be produced.
+    await assertWritableOutputs([overlayPath, differencePath], overwrite);
     for (const invocation of buildComparisonInvocations({
       beforePath, afterPath, overlayPath, differencePath, overwrite,
     })) {

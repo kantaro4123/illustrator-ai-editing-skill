@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import { constants } from 'node:fs';
 import { copyFile, mkdtemp, readFile, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -81,8 +83,10 @@ export function renderMetadataPath(imagePath: string): string {
 }
 
 async function sha256File(path: string): Promise<string> {
+  // Streamed rather than buffered: a high-DPI A4 render is tens of megabytes, and
+  // this runs again on every crop verification.
   const hash = createHash('sha256');
-  hash.update(await readFile(path));
+  await pipeline(createReadStream(path), hash);
   return hash.digest('hex');
 }
 
@@ -185,10 +189,20 @@ export async function renderAi(input: {
     await copyFile(generated, input.outputPath, input.overwrite ? 0 : constants.COPYFILE_EXCL);
     createdOutput = !input.overwrite;
     try {
+      // `mode` only applies when the file is created, so a forced rerun over an
+      // existing permissive sidecar would keep the old bits. Remove it first and
+      // always create fresh at 0600.
+      if (input.overwrite) {
+        try {
+          await unlink(metadataPath);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        }
+      }
       await writeFile(metadataPath, `${JSON.stringify(metadata)}\n`, {
         encoding: 'utf8',
         mode: 0o600,
-        flag: input.overwrite ? 'w' : 'wx',
+        flag: 'wx',
       });
     } catch (error) {
       if (createdOutput) await unlink(input.outputPath).catch(() => undefined);
