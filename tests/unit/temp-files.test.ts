@@ -8,10 +8,11 @@ import {
   readJsonResult,
   writeJsx,
   writeParams,
+  writeTransactionMarker,
 } from '../../src/runner/temp-files.js';
 
 describe('Illustrator transaction files', () => {
-  test('creates isolated paths under a UUID-scoped directory', async () => {
+  test('creates isolated private paths under a UUID-scoped directory', async () => {
     const root = await mkdtemp(join(tmpdir(), 'illustrator-ai-test-'));
     const first = await createTransactionFiles({ rootDir: root, id: '11111111-1111-4111-8111-111111111111' });
     const second = await createTransactionFiles({ rootDir: root, id: '22222222-2222-4222-8222-222222222222' });
@@ -20,14 +21,16 @@ describe('Illustrator transaction files', () => {
     expect(first.paramsPath).toContain(first.id);
     expect(first.resultPath).toContain(first.id);
     expect((await stat(first.directory)).isDirectory()).toBe(true);
+    expect((await stat(first.directory)).mode & 0o777).toBe(0o700);
   });
 
-  test('writes parameters as UTF-8 JSON and JSX with a BOM', async () => {
+  test('writes parameters, JSX, and transaction markers as private files', async () => {
     const root = await mkdtemp(join(tmpdir(), 'illustrator-ai-日本語-'));
     const files = await createTransactionFiles({ rootDir: root, id: '33333333-3333-4333-8333-333333333333' });
 
     await writeParams(files, { path: '/制作/テスト 文書.ai', text: '受付時間' });
     await writeJsx(files, '#target illustrator\nvar message = "日本語";');
+    await writeTransactionMarker(files, { documentPath: '/制作/テスト 文書.ai', command: 'inspect', mutation: false });
 
     expect(JSON.parse(await readFile(files.paramsPath, 'utf8'))).toEqual({
       path: '/制作/テスト 文書.ai',
@@ -36,6 +39,9 @@ describe('Illustrator transaction files', () => {
     expect(await readFile(files.scriptPath, 'utf8')).toBe(
       '\uFEFF#target illustrator\nvar message = "日本語";',
     );
+    for (const path of [files.paramsPath, files.scriptPath, files.markerPath]) {
+      expect((await stat(path)).mode & 0o777).toBe(0o600);
+    }
   });
 
   test('parses a BOM-prefixed JSON result', async () => {
