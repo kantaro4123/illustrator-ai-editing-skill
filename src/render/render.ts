@@ -123,9 +123,9 @@ export async function readRenderMetadata(
 
 export async function resolveCropDpi(input: {
   imagePath: string;
-  metadataPath?: string;
-  explicitDpi?: number;
-  allowUnverifiedDpi?: boolean;
+  metadataPath?: string | undefined;
+  explicitDpi?: number | undefined;
+  allowUnverifiedDpi?: boolean | undefined;
 }): Promise<{ dpi: number; verified: boolean; metadata?: RenderMetadata }> {
   if (input.explicitDpi !== undefined && (!Number.isFinite(input.explicitDpi) || input.explicitDpi <= 0)) {
     throw new Error('Explicit crop DPI must be greater than zero.');
