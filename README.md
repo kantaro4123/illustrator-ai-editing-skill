@@ -13,6 +13,8 @@ The package combines:
 - a deterministic `illustrator-ai` CLI with JSON-only command results;
 - exact path/name document binding, backups, locks, and no-auto-retry timeouts;
 - structure inspection, mutation wrapping, PDF-based rendering, crops, and comparison;
+- fast UUID/name/layer-targeted inspection after initial discovery;
+- deterministic frontends for common text replacement, movement, and font-size edits;
 - synthetic Illustrator host E2E tests and a production-copy smoke-test protocol.
 
 ## Install for Codex and Claude Code
@@ -61,19 +63,58 @@ handling is acceptable for the project and organization.
 Transaction directories under the system temp directory are created mode `0700`; CLI-written
 parameters, JSX, runner scripts, markers, and render metadata are mode `0600` on POSIX systems.
 
+## Fast and deterministic workflow
+
+Start with one compact global inspection to discover stable UUIDs. After a target UUID is known,
+prefer targeted inspection instead of rescanning the whole document:
+
+```bash
+bin/illustrator-ai inspect /absolute/path/working.ai --detail compact --content none
+bin/illustrator-ai inspect /absolute/path/working.ai --uuid ITEM_UUID --detail full
+bin/illustrator-ai inspect /absolute/path/working.ai --name UNIQUE_ITEM_NAME --detail full
+bin/illustrator-ai inspect /absolute/path/working.ai --layer LAYER_NAME --detail compact --content none
+```
+
+UUID targeting uses Illustrator's direct UUID lookup when available and is the preferred fast
+path. Name and layer targeting still enforce uniqueness rather than silently choosing the first
+match.
+
+For common edits, prefer deterministic `edit` operations over AI-authored custom JSX. They run
+through the existing protected `run` path, so backups, document locks, mutation timeout handling,
+and exact document binding are preserved:
+
+```bash
+bin/illustrator-ai edit /absolute/path/working.ai \
+  --operation replace-text --uuid ITEM_UUID \
+  --search 'old text' --replacement 'new text' --confirm
+
+bin/illustrator-ai edit /absolute/path/working.ai \
+  --operation move --uuid ITEM_UUID --dx 0 --dy -6 --confirm
+
+bin/illustrator-ai edit /absolute/path/working.ai \
+  --operation set-font-size --uuid ITEM_UUID --size 11.5 --confirm
+```
+
+Use custom JSX only when the requested operation is not covered by a deterministic edit or tested
+recipe.
+
 ## Safe command loop
 
 ```bash
-bin/illustrator-ai doctor
+bin/illustrator-ai doctor --environment
 bin/illustrator-ai inspect /absolute/path/working.ai --detail compact --content truncated
 bin/illustrator-ai backup /absolute/path/working.ai
-bin/illustrator-ai run /absolute/path/working.ai \
-  --script /absolute/path/edit.jsx --confirm
+bin/illustrator-ai edit /absolute/path/working.ai \
+  --operation move --uuid ITEM_UUID --dx 0 --dy -6 --confirm
+bin/illustrator-ai inspect /absolute/path/working.ai --uuid ITEM_UUID --detail full
 bin/illustrator-ai save /absolute/path/working.ai \
   --confirm --role working --review-round 2
 bin/illustrator-ai render /absolute/path/working.ai \
   --dpi 150 --output /tmp/review.png
 ```
+
+`doctor --environment` augments Illustrator host state with Node/`osascript`, renderer,
+and `ffmpeg` readiness so a new machine can diagnose missing local prerequisites in one command.
 
 Never target a pristine reference with a mutation. Never retry a timed-out operation
 until the host has settled and `doctor` confirms its state. Read
@@ -86,6 +127,24 @@ raster density and explicitly supplies both `--dpi` and `--allow-unverified-dpi`
 
 Review outputs (`render`, `crop`, and `compare`) are no-clobber by default. Supply `--force`
 only when replacing an existing review artifact is intentional.
+
+## Performance benchmarking
+
+A reproducible benchmark harness measures compact global inspection and, when a selector is
+supplied, the targeted fast path against the same file:
+
+```bash
+node scripts/benchmark-inspect.mjs /absolute/path/working.ai --uuid ITEM_UUID --runs 3
+```
+
+The real-document smoke test previously measured roughly 75 seconds for compact global inspection
+on a 19,190-page-item production-scale file. Treat that as a historical baseline, not a universal
+expectation: file opening time, fonts, effects, linked assets, Illustrator state, and hardware all
+matter. Record new measurements with the benchmark harness instead of claiming an unmeasured speedup.
+
+Compact style inspection now explicitly reports `styleRunMode: "sampled"` and a one-character
+sample rather than presenting the first character's style as if it covered the whole frame.
+Use targeted `--detail full` when exact style-run boundaries matter.
 
 ## Verification and publication
 
@@ -113,6 +172,7 @@ for the validated safety behavior; it contains metrics only, not client content.
 - `npm test`: unit and mocked integration tests; live E2E files skip by default.
 - `ILLUSTRATOR_E2E=1 npm test -- tests/e2e`: destructive tests on generated fixtures
   in an otherwise empty Illustrator session.
+- `node scripts/benchmark-inspect.mjs <absolute.ai> [--uuid <id>] [--runs 3]`: compare global and targeted inspect latency.
 - `scripts/run-prompt-evals.sh dry-run`: validate the shared prompt corpus.
 - `scripts/run-prompt-evals.sh codex|claude`: planning-only live agent evaluation.
 
