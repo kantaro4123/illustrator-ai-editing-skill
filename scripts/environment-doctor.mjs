@@ -13,13 +13,34 @@ async function available(name) {
   }
 }
 
+function parseArgs(args) {
+  let target;
+  let timeout;
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (token === '--timeout') {
+      timeout = args[index + 1];
+      if (timeout === undefined) throw new Error('--timeout requires a value.');
+      index += 1;
+      continue;
+    }
+    if (token.startsWith('--timeout=')) {
+      timeout = token.slice('--timeout='.length);
+      continue;
+    }
+    if (token.startsWith('--')) throw new Error(`Unknown doctor option: ${token}`);
+    if (target) throw new Error('doctor accepts at most one target document path.');
+    target = token;
+  }
+  return { target, timeout };
+}
+
 export async function runEnvironmentDoctor(args, root) {
-  const target = args.find((value) => !value.startsWith('--'));
+  const { target, timeout } = parseArgs(args);
   const binPath = join(root, 'bin', 'illustrator-ai');
   const baseArgs = [binPath, 'doctor'];
   if (target) baseArgs.push(target);
-  const timeoutIndex = args.indexOf('--timeout');
-  if (timeoutIndex >= 0 && args[timeoutIndex + 1]) baseArgs.push('--timeout', args[timeoutIndex + 1]);
+  if (timeout) baseArgs.push('--timeout', timeout);
 
   const { stdout } = await execFileAsync(process.execPath, baseArgs, { encoding: 'utf8' });
   const base = JSON.parse(stdout.trim());
