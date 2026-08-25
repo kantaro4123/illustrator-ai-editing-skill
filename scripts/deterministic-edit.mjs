@@ -49,22 +49,71 @@ function finiteOption(options, key) {
   return value;
 }
 
+function optionalFinite(options, key) {
+  if (options[key] === undefined) return undefined;
+  if (typeof options[key] !== 'string') throw new Error(`--${key} must take a numeric value.`);
+  const value = Number(options[key]);
+  if (!Number.isFinite(value)) throw new Error(`--${key} must be a finite number.`);
+  return value;
+}
+
+function parseBounds(value) {
+  if (typeof value !== 'string') return undefined;
+  const parts = value.split(',').map(Number);
+  if (parts.length !== 4 || parts.some((entry) => !Number.isFinite(entry))) {
+    throw new Error('--expected-bounds must be left,top,right,bottom with four finite numbers.');
+  }
+  return parts;
+}
+
+function preconditions(options) {
+  const value = {};
+  if (typeof options.expectedTypename === 'string') value.expectedTypename = options.expectedTypename;
+  if (typeof options.expectedName === 'string') value.expectedName = options.expectedName;
+  if (typeof options.expectedText === 'string') value.expectedText = options.expectedText;
+  const expectedFontSize = optionalFinite(options, 'expectedFontSize');
+  if (expectedFontSize !== undefined) value.expectedFontSize = expectedFontSize;
+  const expectedOpacity = optionalFinite(options, 'expectedOpacity');
+  if (expectedOpacity !== undefined) value.expectedOpacity = expectedOpacity;
+  const expectedBounds = parseBounds(options.expectedBounds);
+  if (expectedBounds) value.expectedBounds = expectedBounds;
+  return Object.keys(value).length > 0 ? value : undefined;
+}
+
 function makeEdit(options) {
   if (typeof options.operation !== 'string') throw new Error('edit requires --operation.');
-  const selected = selector(options);
+  const base = { ...selector(options) };
+  const expected = preconditions(options);
+  if (expected) base.preconditions = expected;
+
   if (options.operation === 'replace-text') {
     if (typeof options.search !== 'string' || typeof options.replacement !== 'string') {
       throw new Error('replace-text requires --search and --replacement.');
     }
-    return { operation: 'replace-text', ...selected, search: options.search, replacement: options.replacement };
+    return { operation: 'replace-text', ...base, search: options.search, replacement: options.replacement };
   }
   if (options.operation === 'move') {
-    return { operation: 'move', ...selected, dx: finiteOption(options, 'dx'), dy: finiteOption(options, 'dy') };
+    return { operation: 'move', ...base, dx: finiteOption(options, 'dx'), dy: finiteOption(options, 'dy') };
   }
   if (options.operation === 'set-font-size') {
-    return { operation: 'set-font-size', ...selected, size: finiteOption(options, 'size') };
+    return { operation: 'set-font-size', ...base, size: finiteOption(options, 'size') };
   }
-  throw new Error('--operation must be replace-text, move, or set-font-size.');
+  if (options.operation === 'set-tracking') {
+    return { operation: 'set-tracking', ...base, tracking: finiteOption(options, 'tracking') };
+  }
+  if (options.operation === 'set-leading') {
+    return { operation: 'set-leading', ...base, leading: finiteOption(options, 'leading') };
+  }
+  if (options.operation === 'set-opacity') {
+    return { operation: 'set-opacity', ...base, opacity: finiteOption(options, 'opacity') };
+  }
+  if (options.operation === 'rotate') {
+    return { operation: 'rotate', ...base, angle: finiteOption(options, 'angle') };
+  }
+  if (options.operation === 'scale') {
+    return { operation: 'scale', ...base, scaleX: finiteOption(options, 'scaleX'), scaleY: finiteOption(options, 'scaleY') };
+  }
+  throw new Error('--operation must be replace-text, move, set-font-size, set-tracking, set-leading, set-opacity, rotate, or scale.');
 }
 
 function emitEditResult(stdout) {
