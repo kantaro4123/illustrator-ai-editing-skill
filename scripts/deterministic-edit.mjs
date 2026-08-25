@@ -67,6 +67,13 @@ function makeEdit(options) {
   throw new Error('--operation must be replace-text, move, or set-font-size.');
 }
 
+function emitEditResult(stdout) {
+  const parsed = JSON.parse(stdout.trim());
+  parsed.command = 'edit';
+  process.stdout.write(`${JSON.stringify(parsed)}\n`);
+  if (!parsed.ok) process.exitCode = 1;
+}
+
 export async function runDeterministicEdit(args, root) {
   const documentPath = args[0];
   if (!documentPath || !isAbsolute(documentPath)) {
@@ -86,11 +93,16 @@ export async function runDeterministicEdit(args, root) {
     const binPath = join(root, 'bin', 'illustrator-ai');
     const runArgs = [binPath, 'run', documentPath, '--script', scriptPath, '--confirm'];
     if (typeof options.timeout === 'string') runArgs.push('--timeout', options.timeout);
-    const { stdout } = await execFileAsync(process.execPath, runArgs, { encoding: 'utf8' });
-    const parsed = JSON.parse(stdout.trim());
-    parsed.command = 'edit';
-    process.stdout.write(`${JSON.stringify(parsed)}\n`);
-    if (!parsed.ok) process.exitCode = 1;
+    try {
+      const { stdout } = await execFileAsync(process.execPath, runArgs, { encoding: 'utf8' });
+      emitEditResult(stdout);
+    } catch (error) {
+      if (error && typeof error === 'object' && typeof error.stdout === 'string' && error.stdout.trim()) {
+        emitEditResult(error.stdout);
+        return;
+      }
+      throw error;
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
