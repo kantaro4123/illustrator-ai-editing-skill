@@ -13,6 +13,7 @@ function fail(code, message, nextAction) {
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const [major, minor] = process.versions.node.split('.').map(Number);
+const cliArgs = process.argv.slice(2);
 
 if (major < MINIMUM_NODE_MAJOR || (major === MINIMUM_NODE_MAJOR && minor < MINIMUM_NODE_MINOR)) {
   fail(
@@ -32,10 +33,29 @@ if (major < MINIMUM_NODE_MAJOR || (major === MINIMUM_NODE_MAJOR && minor < MINIM
     );
   } else {
     try {
-      const { main } = await import(pathToFileURL(entry).href);
-      await main();
+      const command = cliArgs[0];
+      const targetedInspect = command === 'inspect'
+        && cliArgs.some((value) => value === '--uuid' || value === '--name' || value === '--layer');
+      const environmentDoctor = command === 'doctor' && cliArgs.includes('--environment');
+
+      if (command === 'edit') {
+        const moduleUrl = pathToFileURL(join(root, 'scripts', 'deterministic-edit.mjs')).href;
+        const { runDeterministicEdit } = await import(moduleUrl);
+        await runDeterministicEdit(cliArgs.slice(1), root);
+      } else if (targetedInspect) {
+        const moduleUrl = pathToFileURL(join(root, 'scripts', 'targeted-inspect.mjs')).href;
+        const { runTargetedInspect } = await import(moduleUrl);
+        await runTargetedInspect(cliArgs.slice(1), root);
+      } else if (environmentDoctor) {
+        const moduleUrl = pathToFileURL(join(root, 'scripts', 'environment-doctor.mjs')).href;
+        const { runEnvironmentDoctor } = await import(moduleUrl);
+        await runEnvironmentDoctor(cliArgs.slice(1).filter((value) => value !== '--environment'), root);
+      } else {
+        const { main } = await import(pathToFileURL(entry).href);
+        await main();
+      }
     } catch (error) {
-      fail('EXECUTION_FAILED', String(error), 'Run illustrator-ai doctor to check the host, then retry.');
+      fail('EXECUTION_FAILED', String(error), 'Run illustrator-ai doctor --environment to check the host and local tools, then retry.');
     }
   }
 }
