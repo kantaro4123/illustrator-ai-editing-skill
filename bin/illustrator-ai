@@ -24,8 +24,6 @@ if (major < MINIMUM_NODE_MAJOR || (major === MINIMUM_NODE_MAJOR && minor < MINIM
 } else {
   const entry = join(root, 'dist', 'src', 'cli', 'main.js');
   if (!existsSync(entry)) {
-    // A fresh clone has no dist/, and the bare ERR_MODULE_NOT_FOUND that used to
-    // surface here named a path but never the fix.
     fail(
       'NOT_BUILT',
       `The skill is not built: ${entry} does not exist.`,
@@ -46,6 +44,10 @@ if (major < MINIMUM_NODE_MAJOR || (major === MINIMUM_NODE_MAJOR && minor < MINIM
         const moduleUrl = pathToFileURL(join(root, 'scripts', 'deterministic-edit.mjs')).href;
         const { runDeterministicEdit } = await import(moduleUrl);
         await runDeterministicEdit(cliArgs.slice(1), root);
+      } else if (command === 'edit-batch') {
+        const moduleUrl = pathToFileURL(join(root, 'scripts', 'deterministic-edit-batch.mjs')).href;
+        const { runDeterministicEditBatch } = await import(moduleUrl);
+        await runDeterministicEditBatch(cliArgs.slice(1), root);
       } else if (targetedInspect) {
         const moduleUrl = pathToFileURL(join(root, 'scripts', 'targeted-inspect.mjs')).href;
         const { runTargetedInspect } = await import(moduleUrl);
