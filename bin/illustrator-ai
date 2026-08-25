@@ -35,7 +35,11 @@ if (major < MINIMUM_NODE_MAJOR || (major === MINIMUM_NODE_MAJOR && minor < MINIM
     try {
       const command = cliArgs[0];
       const targetedInspect = command === 'inspect'
-        && cliArgs.some((value) => value === '--uuid' || value === '--name' || value === '--layer');
+        && cliArgs.some((value) => (
+          value === '--uuid' || value.startsWith('--uuid=')
+          || value === '--name' || value.startsWith('--name=')
+          || value === '--layer' || value.startsWith('--layer=')
+        ));
       const environmentDoctor = command === 'doctor' && cliArgs.includes('--environment');
 
       if (command === 'edit') {
