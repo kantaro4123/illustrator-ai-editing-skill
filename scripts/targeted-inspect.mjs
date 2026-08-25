@@ -6,14 +6,23 @@ import { pathToFileURL } from 'node:url';
 
 const execFileAsync = promisify(execFile);
 
+function optionKey(value) {
+  return value.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
 function parseOptions(tokens) {
   const options = {};
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
     if (!token.startsWith('--')) throw new Error(`Unexpected positional argument: ${token}`);
-    const key = token.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    const equals = token.indexOf('=');
+    if (equals > 2) {
+      options[optionKey(token.slice(2, equals))] = token.slice(equals + 1);
+      continue;
+    }
+    const key = optionKey(token.slice(2));
     const next = tokens[index + 1];
-    if (next && !next.startsWith('--')) {
+    if (next !== undefined && !next.startsWith('--')) {
       options[key] = next;
       index += 1;
     } else {
