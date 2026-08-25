@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 const scripts = [
   'bin/illustrator-ai',
   'scripts/deterministic-edit.mjs',
+  'scripts/deterministic-edit-batch.mjs',
   'scripts/targeted-inspect.mjs',
   'scripts/environment-doctor.mjs',
   'scripts/benchmark-inspect.mjs',
