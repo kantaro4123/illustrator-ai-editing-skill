@@ -58,9 +58,18 @@ function styleSignature(run) {
   return [run.font, run.size, run.horizontalScale, run.verticalScale, run.tracking, run.leading].join("|");
 }
 
-function inspectStyleRuns(frame, fullDetail) {
-  if (frame.characters.length === 0) return [];
-  if (!fullDetail) return [styleRunAt(frame.characters[0], 0, frame.characters.length)];
+function inspectStyleRuns(frame, wantsFullStyle, hasFullStyleBudget) {
+  if (frame.characters.length === 0) {
+    return { mode: "empty", runs: [], truncated: false, sampledCharacterIndex: null };
+  }
+  if (!wantsFullStyle || !hasFullStyleBudget) {
+    return {
+      mode: wantsFullStyle ? "budget-truncated" : "sampled",
+      runs: [styleRunAt(frame.characters[0], 0, 1)],
+      truncated: wantsFullStyle && !hasFullStyleBudget,
+      sampledCharacterIndex: 0
+    };
+  }
   var output = [];
   var current = null;
   var currentSignature = "";
@@ -77,7 +86,7 @@ function inspectStyleRuns(frame, fullDetail) {
     }
   }
   if (current) output.push(current);
-  return output;
+  return { mode: "complete", runs: output, truncated: false, sampledCharacterIndex: null };
 }
 
 function inspectTextContent(frame) {
@@ -138,9 +147,9 @@ for (inspectIndex = 0; inspectIndex < inspectDocument.textFrames.length; inspect
   var frame = inspectDocument.textFrames[inspectIndex];
   var wantsFullStyle = inspectParams.detail === "full";
   var hasFullStyleBudget = frame.characters.length <= remainingStyleCharacters;
-  var useFullStyle = wantsFullStyle && hasFullStyleBudget;
-  if (useFullStyle) remainingStyleCharacters -= frame.characters.length;
+  if (wantsFullStyle && hasFullStyleBudget) remainingStyleCharacters -= frame.characters.length;
   var textContent = inspectTextContent(frame);
+  var styleInspection = inspectStyleRuns(frame, wantsFullStyle, hasFullStyleBudget);
   inspection.textFrames.push({
     uuid: inspectUuid(frame),
     name: inspectName(frame),
@@ -153,8 +162,10 @@ for (inspectIndex = 0; inspectIndex < inspectDocument.textFrames.length; inspect
     locked: frame.locked,
     hidden: frame.hidden,
     overflow: inspectOverflow(frame),
-    styleRuns: inspectStyleRuns(frame, useFullStyle),
-    styleRunsTruncated: wantsFullStyle && !useFullStyle
+    styleRunMode: styleInspection.mode,
+    sampledCharacterIndex: styleInspection.sampledCharacterIndex,
+    styleRuns: styleInspection.runs,
+    styleRunsTruncated: styleInspection.truncated
   });
 }
 
