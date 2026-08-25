@@ -21,9 +21,12 @@ describe('inspect command composition', () => {
     expect(request.jsx).toContain('var inspectParams = parseJsonFile(PARAMS_PATH);');
     expect(request.jsx).toContain('if (mode === "none")');
     expect(request.jsx).toContain('path: inspectParams.includeLinkPaths ? linkPath : null');
-    expect(request.jsx).toContain('if (frame.characters.length === 0) return [];');
-    expect(request.jsx).toContain('styleRunAt(frame.characters[0], 0, frame.characters.length)');
-    expect(request.jsx).toContain('styleRunsTruncated');
+    expect(request.jsx).toContain('mode: "empty", runs: []');
+    expect(request.jsx).toContain('runs: [styleRunAt(frame.characters[0], 0, 1)]');
+    expect(request.jsx).toContain('mode: wantsFullStyle ? "budget-truncated" : "sampled"');
+    expect(request.jsx).toContain('styleRunMode: styleInspection.mode');
+    expect(request.jsx).toContain('sampledCharacterIndex: styleInspection.sampledCharacterIndex');
+    expect(request.jsx).toContain('styleRunsTruncated: styleInspection.truncated');
     expect(request.jsx).not.toMatch(/^\s*\/\/\s*@/m);
     expect(request.mutation).toBe(false);
   });
