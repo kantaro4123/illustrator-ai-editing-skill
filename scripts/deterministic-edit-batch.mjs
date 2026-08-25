@@ -6,6 +6,16 @@ import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
 const execFileAsync = promisify(execFile);
+const OPERATIONS = new Set([
+  'replace-text',
+  'move',
+  'set-font-size',
+  'set-tracking',
+  'set-leading',
+  'set-opacity',
+  'rotate',
+  'scale',
+]);
 
 function optionKey(value) {
   return value.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -31,6 +41,29 @@ function parseOptions(tokens) {
     }
   }
   return options;
+}
+
+function validateBatchShape(edits) {
+  if (edits.length === 0) throw new Error('edit-batch requires at least one edit.');
+  if (edits.length > 100) throw new Error('edit-batch is limited to 100 edits.');
+  for (let index = 0; index < edits.length; index += 1) {
+    const edit = edits[index];
+    if (!edit || typeof edit !== 'object' || Array.isArray(edit)) {
+      throw new Error(`edit-batch item ${index} must be an object.`);
+    }
+    if (typeof edit.operation !== 'string' || !OPERATIONS.has(edit.operation)) {
+      throw new Error(`edit-batch item ${index} has an unsupported operation.`);
+    }
+    const selectorCount = (typeof edit.uuid === 'string' && edit.uuid.length > 0 ? 1 : 0)
+      + (typeof edit.name === 'string' && edit.name.length > 0 ? 1 : 0);
+    if (selectorCount !== 1) {
+      throw new Error(`edit-batch item ${index} requires exactly one non-empty uuid or name.`);
+    }
+    if (edit.preconditions !== undefined
+      && (!edit.preconditions || typeof edit.preconditions !== 'object' || Array.isArray(edit.preconditions))) {
+      throw new Error(`edit-batch item ${index} preconditions must be an object.`);
+    }
+  }
 }
 
 function emitBatchResult(stdout) {
@@ -59,6 +92,7 @@ export async function runDeterministicEditBatch(args, root) {
     throw new Error(`edit-batch JSON is invalid: ${error}`);
   }
   if (!Array.isArray(edits)) throw new Error('edit-batch JSON root must be an array.');
+  validateBatchShape(edits);
 
   const moduleUrl = pathToFileURL(join(root, 'dist', 'src', 'commands', 'deterministic-edit.js')).href;
   const { buildDeterministicBatchSource } = await import(moduleUrl);
