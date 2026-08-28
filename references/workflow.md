@@ -38,6 +38,23 @@ and footer changes.
 After a host error, reduce transaction size. After a timeout on a mutation, do not retry at
 any size until recovery establishes whether it applied.
 
+## Preconditions and batches
+
+`edit-batch` validates every item's preconditions before applying any of them, so a batch that
+fails one precondition leaves the document untouched. That makes a batch the safer unit for a
+set of related moves: either the whole arrangement lands or nothing does, with no half-applied
+state to reason about. Confirm rather than assume — after a rejected batch, re-inspect and check
+that nothing moved.
+
+Write preconditions from values you actually read back, at full precision. `expectedBounds`
+compares exactly, so a coordinate retyped from a rounded display — bounds printed to one
+decimal — fails against the document's real value and rejects a correct edit. Either carry the
+full precision through from the inspection result, or drop to a cheaper guard.
+
+Match the guard to what it protects: `expectedTypename` and `expectedText` catch an edit aimed
+at the wrong object and stay readable; `expectedFontSize` catches re-running a size change that
+already applied; `expectedBounds` is for state you are about to compute a delta from.
+
 ## CLI behavior
 
 The CLI requires absolute document paths. `run` additionally requires an absolute JSX path

@@ -19,6 +19,18 @@ outline creation, duplication, recovery, and z-order changes. Refuse non-unique 
 Locked or hidden ancestors can prevent writes even when the leaf appears editable. Inspect
 and deliberately unlock only the required chain, then restore the prior state.
 
+Object names left by earlier sessions go stale. A production file carried a `BODY_*` name on the
+body of a different section entirely: the name survived while the content around it was rewritten.
+Names are a hint; position plus contents is the evidence. When a name and the layout disagree,
+believe the layout.
+
+UUID lookup and collection membership can disagree. An id reported under `rasterItems` resolved
+through `getPageItemFromUuid` to a `GroupItem` whose own `pageItems` then threw. When a resolved
+handle starts raising on its own properties, stop trusting it and re-find the target by geometry
+within the collection that should contain it — iterate `document.rasterItems` and match bounds —
+rather than pushing on through a bad reference. Wrapping every property read in a `safe()` helper
+turns that failure into readable evidence instead of an opaque host error.
+
 ## Collection scale traps
 
 `document.pageItems` enumerates EVERY nested descendant. A flyer with outlined headline

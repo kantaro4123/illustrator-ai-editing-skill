@@ -45,6 +45,7 @@ describe('cross-agent Illustrator skill package', () => {
       'japanese-typography.md',
       'layout-review.md',
       'measuring-a-printed-reference.md',
+      'measuring-from-the-render.md',
       'platforms.md',
       'production-safety.md',
       'recipes.md',

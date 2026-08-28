@@ -66,6 +66,17 @@ JSON object for commands; keep diagnostics on stderr in wrappers.
   verify their relative offsets, not just each absolute position.
 - Never infer whether a percentage compressed width or height. Require direct metadata,
   before/after geometry, or multiple outlined glyph measurements against a 100/100 sample.
+- Bounds are not proof of what renders. `visibleBounds` still counts invisible group members, a
+  clipped raster reports its pre-clip extent, and `inkBounds()` describes one line only on a
+  multi-line frame. Before aligning to any **visual** edge — a logo, a photo, a neighbouring
+  line — measure the rendered pixels, and re-measure the same two numbers after the move instead
+  of trusting the delta you applied.
+- Derive a move from a measured difference, never from a guessed magnitude. Review language
+  ("a little tighter", "line these up") states the intent; the alignment target states the
+  amount. Compute one from the other before editing.
+- Translate a block only after checking what already occupies the destination band. When a
+  neighbouring graphic would collide, move it with the block to preserve the internal
+  composition and report that you did — silently leaving it behind changes the design.
 - Compact style inspection is **sample evidence**, not proof of one style across a whole frame.
   `styleRunMode: "sampled"` means the returned run describes one sampled character only.
   Use targeted `--detail full` when style-run boundaries matter.
@@ -173,10 +184,13 @@ After each coherent transaction:
 - render the same verified DPI before/after;
 - crop both images to identical coordinates using their matching render metadata;
 - inspect overlay/difference output;
+- re-measure any alignment the edit was specified against, in the render, and report the residual;
 - review neighboring elements, section rhythm, symmetry, and full-page balance.
 
 For review feedback such as “spacing feels wrong,” measure ink bounds and repeated gaps;
 do not nudge until it looks plausible. Read [layout review](references/layout-review.md).
+When the feedback names a visual edge to align to, the bounds reported by inspection may not be
+the edge the reviewer sees. Read [measuring from the render](references/measuring-from-the-render.md).
 
 Passing every mechanical check above does not predict review approval. For branded material,
 also audit judgment items — grid alignment, spacing in em, anchor-derived geometry — against
@@ -203,6 +217,7 @@ The benchmark harness exists to compare global and targeted inspection reproduci
 - Brand guideline compliance, spacing judgment in em, restored-element anchors: [design guidelines](references/design-guidelines.md)
 - Fitting supplied copy, measuring capacity, size sweeps, width fitting: [fitting copy](references/fitting-copy.md)
 - Reproducing from a photo of a printed piece, and which measurement to trust: [measuring a printed reference](references/measuring-a-printed-reference.md)
+- Aligning to a visual edge, bounds that lie, pixel measurement and row profiling: [measuring from the render](references/measuring-from-the-render.md)
 - Object identity, coordinates, text frames, and ES3 pitfalls: [Illustrator DOM](references/illustrator-dom.md)
 - Kinsoku, style-safe replacement, reception hours, and Japanese text: [Japanese typography](references/japanese-typography.md)
 - Live and outlined 100/100 restoration: [aspect ratio](references/aspect-ratio.md)

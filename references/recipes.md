@@ -135,3 +135,47 @@ restoreRelative([label, value], graphic, offsets);        // assert/repair after
 
 When the relationship is already broken, recover the correct offsets from the untouched
 base file rather than guessing them from the current state.
+
+## Resize an area-text container without scaling the text
+
+`textFrame.resize()` scales the glyphs with the box, so it cannot be used to give an area
+frame more or fewer lines. Move the container path's anchor points instead. For the usual
+rectangular frame, displace only the points on the edge you are changing:
+
+```javascript
+var points = frame.textPath.pathPoints;
+if (points.length !== 4) throw new Error("expected a rectangular text path");
+var topY = null, i;
+for (i = 0; i < points.length; i++) {
+  if (topY === null || points[i].anchor[1] > topY) topY = points[i].anchor[1];
+}
+for (i = 0; i < points.length; i++) {
+  var p = points[i];
+  var delta = (Math.abs(p.anchor[1] - topY) < 0.5) ? deltaTop : deltaBottom;
+  p.anchor         = [p.anchor[0],         p.anchor[1]         + delta];
+  p.leftDirection  = [p.leftDirection[0],  p.leftDirection[1]  + delta];
+  p.rightDirection = [p.rightDirection[0], p.rightDirection[1] + delta];
+}
+```
+
+Move `leftDirection` and `rightDirection` with the anchor or the segment warps. Assert the
+point count rather than assuming a rectangle. Gate the result on `textOverflows(frame)` before
+and after — that flag, not the reported bounds, is what tells you the copy now fits. The frame's
+`geometricBounds` may not change at all when the container does.
+
+Derive the target height from the file's own rule rather than from leading. Container heights in
+an approved family usually follow a fixed relation to line count; recover it from three existing
+frames with different line counts and solve, then size every frame you touch with that relation.
+
+## Open one glyph pair without disturbing the run
+
+Tracking applies to the space after a character, so a single pair is opened by touching one
+character. Locate it by content, and refuse an ambiguous match rather than editing the first hit:
+
+```javascript
+var contents = String(frame.contents);
+var index = contents.indexOf(pair);
+if (index < 0) throw new Error("pair not found");
+if (contents.indexOf(pair, index + 1) >= 0) throw new Error("pair is ambiguous");
+frame.textRange.characters[index].characterAttributes.tracking = newTracking;
+```

@@ -139,3 +139,31 @@ Do not silently choose. List every such difference with both values and ask, bec
 the client knows which is current. Reproduce the *content* of the reference and keep the
 *boilerplate* of the approved base until told otherwise — that keeps the diff against the
 approved file minimal, which is the whole point of deriving.
+
+## Outlined means fixed, live means variable
+
+In a family of per-instance deliverables, the file itself records which parts the design holds
+constant. Elements converted to outlines are the fixed frame: they cannot be retyped, and the
+fact that someone outlined them says they were never meant to vary. Elements left as live text
+are the fields that change per instance.
+
+So before agreeing to a copy change, check which one it is. A request that would retype an
+outlined heading is a design change, not a content change — surface it instead of rebuilding
+the artwork to match. And when supplied copy disagrees with an outlined heading, the outlined
+heading usually wins: the supplied wording is often the interviewer's question, not a new
+heading.
+
+## Read house-style variance off the siblings, not off one file
+
+One approved file cannot tell you which of its properties are fixed and which were chosen for
+that instance. Two or three can. Compare the siblings before deciding that a property is
+untouchable:
+
+- a headline set at one size in the base and a different size, on a different number of lines,
+  in a sibling means headline size is fitted per instance — so shrinking it to fit a longer
+  university name is house style, not a violation;
+- a section title worded differently across siblings is a per-instance field;
+- a value identical across every sibling is structural, and changing it needs a reason.
+
+This matters most when the supplied copy does not fit. The question "may I change this?" is
+usually already answered by the family.
