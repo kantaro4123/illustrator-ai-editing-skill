@@ -1,11 +1,43 @@
 # Illustrator AI Editing Skill
 
-A production-safety-first Adobe Illustrator editing skill and deterministic CLI for
-Codex and Claude Code.
+**Edit Adobe Illustrator files directly from Codex and Claude Code.**
+
+Inspect layers and objects, replace text, move elements, change font sizes, render previews,
+and safely automate `.ai` files from an AI coding agent.
+
+```text
+Codex / Claude Code
+        ↓
+  illustrator-ai CLI
+        ↓
+Adobe Illustrator
+```
 
 The initial stable target is macOS with Adobe Illustrator 2026. The Illustrator-side
 ExtendScript modules remain platform-neutral so a verified Windows bridge can be
 added later.
+
+## What you can do
+
+- inspect Illustrator documents and discover layers, objects, text frames, names, and UUIDs;
+- replace text, move objects, and change font sizes through deterministic edit operations;
+- target known objects by UUID, name, or layer instead of repeatedly rescanning the full document;
+- render Illustrator documents to PNG for visual review, then crop and compare outputs;
+- run AI-driven editing with backups, document locks, exact path/name binding, and timeout safeguards;
+- treat Illustrator document content as untrusted data to reduce prompt-injection risk.
+
+Example requests you can give your coding agent:
+
+```text
+Replace “Summer Sale” with “Autumn Sale” in this Illustrator file.
+Move the logo 6 pt upward.
+Find the text frame containing “2025” and change it to “2026”.
+Inspect this .ai file and tell me which layer contains the footer.
+Render the edited file so I can review the result.
+```
+
+This is not just a prompt that asks an agent to generate arbitrary JSX. The project provides a
+safety-first editing layer and deterministic CLI for real Illustrator workflows.
 
 The package combines:
 
