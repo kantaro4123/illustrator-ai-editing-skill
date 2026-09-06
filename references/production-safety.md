@@ -57,6 +57,31 @@ documents by normalized `fullName.fsName`, activates only an exact match, and ot
 the exact target file. It then verifies both path and decoded name. Failure is
 `DOCUMENT_MISMATCH`, not a reason to fall back to the front document.
 
+**Normalize the path yourself before you pass it.** Two spellings of the same file — one with a
+`..` segment, one without — are treated as different documents, so the second command opens a
+*second* Illustrator instance of the same file on disk. Edits then land in one instance while
+`save` writes the other, and the file on disk silently reverts to the untouched content. Nothing
+errors: both commands report success.
+
+Symptoms, in the order they usually appear:
+
+- a render taken after a successful edit shows the pre-edit artwork;
+- `doctor` lists the same filename twice, with paths that differ only in spelling;
+- an unrelated `inspect` starts failing with a host error such as `MRAP`.
+
+Recovery, once two instances exist:
+
+1. probe every open document for a distinguishing value — a headline's contents, a frame count —
+   not the path, because both spellings can resolve to the same `fsName`;
+2. close the stale instance with `SaveOptions.DONOTSAVECHANGES`;
+3. save the instance that carries the edits;
+4. **close that one too and reopen through the canonical path.** Leaving it open keeps the
+   non-normalized binding alive, and the next canonical-path command splits the file again.
+
+Step 4 is the one that gets skipped, and it is why the fault recurs later in the same session.
+When in doubt close every document and reopen; a render hash then confirms the file on disk is
+the version you verified.
+
 ## Locks and timeouts
 
 Locks live outside client folders and contain document path, command, PID, start time, and

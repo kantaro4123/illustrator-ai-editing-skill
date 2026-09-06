@@ -74,6 +74,64 @@ faster than measuring and rebuilding them. Verify by comparing bounds against th
 matching width and height is strong evidence the styling survived (a collapsed-run frame is
 visibly shorter — e.g. H29.4 where the original was H42.5).
 
+## Transplant a whole approved section; do not re-derive it
+
+When the family already has an approved instance of the section you need — a two-school
+footer, a consultation box, a header block — and the new document is merely a different
+format (a different template, a different background colour, a different width), move the
+section over as one object and adapt it as a unit. Rebuilding it element by element from the
+new template's placeholders produced a footer in which every element was individually
+reasonable and the whole was at half the family's type scale.
+
+The pattern:
+
+```javascript
+app.activeDocument = srcDoc;  srcDoc.selection = items;  app.copy();
+app.activeDocument = dstDoc;  dstDoc.selection = null;
+app.executeMenuCommand("pasteInPlace");
+var grp = dstLayer.groupItems.add();
+for (var i = 0; i < dstDoc.selection.length; i++) dstDoc.selection[i].move(grp, ElementPlacement.PLACEATEND);
+var S = targetWidth / sourceWidth;                       // one scale for everything
+grp.resize(S*100, S*100, true, true, true, true, S*100, Transformation.TOPLEFT);
+grp.translate(targetLeft - grp.geometricBounds[0], targetTop - grp.geometricBounds[1]);
+```
+
+- Scale the **group**, not the members, so relative positions, stroke weights and type sizes
+  all move together; pass the same percentage as `changeLineWidths`.
+- Recolour by rule, not by hand: walk the group and map the source's ink colour to the
+  destination's (read the destination's colour off an existing object rather than typing a
+  swatch); leave rasters and accent colours alone.
+- Where the destination template already has its own artwork for a part (an outlined CTA in
+  the right colour, a search-box graphic), scale that part to the sibling's proportion and
+  place it, rather than recolouring the sibling's copy.
+- Do not save the source document. Close it with `SaveOptions.DONOTSAVECHANGES` and confirm
+  its hash or mtime afterwards — copying dirties its `saved` flag.
+- Inventory a template group's children before removing the container. A footer whose parts
+  all lived in one group lost the search button's cursor icon when the group was deleted
+  wholesale; the icon was a separate child, not part of the search-box artwork being kept.
+  Move every child you intend to keep out of the group first, then remove it, and compare the
+  before/after renders of the kept artwork.
+
+Before scaling anything, write down the source's **implied alignments** — the edges that
+happen to coincide and were clearly meant to: a closing bracket ending under the map's right
+edge, a heading centred over the label box beneath it, a phone row ending where the address
+ends. Uniform scaling keeps them; anything you do after (widening a box, holding one element at
+a different scale) breaks them silently, and the reviewer reads each broken pair as a mistake.
+Re-measure the list after every non-uniform change. Which elements are centred and which are
+flush is part of that list — a four-character name that fills its box and a three-character one
+centred in the same box are both "centred"; left-aligning one of them is a change.
+
+When the destination is shorter than the source's proportions allow, the scale is set by the
+height and the width comes up short. Do not leave the slack as side insets — a section narrower
+than the rules above it reads as a mistake. Absorb it inside the containers that have padding to
+give (a rounded label box, the gap between a text block and its map) so both columns stay flush
+with the rule ends, and re-check every left axis afterwards: a heading that was centred over a
+box whose width matched it drifts inward the moment the box grows.
+
+The one thing uniform scaling can push past a limit is the smallest type. Report it as a
+number (a 6.4pt fine-print line becomes 5.5pt at 86%) and let the client decide, rather than
+breaking the proportion to rescue it.
+
 ## Verify the new file against the base, not only against the brief
 
 Before declaring done, diff the derivative against its base and account for **every**

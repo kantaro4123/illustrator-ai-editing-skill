@@ -76,6 +76,27 @@ Every command result uses the same envelope:
 Failures include a stable code, recoverability, retry guidance, and artifact paths. Parse
 stdout as JSON; do not scrape human prose. Help and version are the only plain-text outputs.
 
+**A result file with an `error` key is a failure, and only its `message` survives.** `run`
+treats any result object containing `error` as a failed script and reports `message` — or the
+generic "ExtendScript failed." when there is none — discarding everything else in the object. So
+a `catch` that writes `{error: String(e)}` produces an unreadable failure. Write
+`{error: true, message: String(e) + " @" + phase + " line=" + e.line}` instead, and keep a
+`phase` variable updated through the script; three builds failed with no diagnosis before this was
+understood, and the real fault (a stale object reference) surfaced on the first run afterwards.
+
+**File names with combining marks fail the path check.** macOS stores names such as ダ or ッ in
+decomposed form (NFD); a path typed or pasted in composed form (NFC) opens the right document
+but `run` then reports `DOCUMENT_MISMATCH` with two strings that print identically. Normalise the
+path to NFD before passing it — `unicodedata.normalize('NFD', path)` — or take it from a
+directory listing rather than typing it. Names without dakuten never trigger this, which is why
+it looks intermittent.
+
+`render` rasterizes the document's first page. On a multi-artboard file, get a specific
+artboard with `doc.exportFile` (`ExportOptionsPNG24`, `artBoardClipping = true`,
+`horizontalScale = verticalScale = dpi / 72 * 100`) after `setActiveArtboardIndex`. The export
+is clipped to the artboard, so pixel↔point mapping needs no bleed offset — but note that
+`setActiveArtboardIndex` dirties the document, so close it without saving afterwards.
+
 ## Visual evidence and DPI binding
 
 `render` produces the PNG plus `<png>.illustrator-ai.json`. The sidecar contains the renderer,

@@ -47,6 +47,7 @@ describe('cross-agent Illustrator skill package', () => {
       'measuring-a-printed-reference.md',
       'measuring-from-the-render.md',
       'platforms.md',
+      'pre-submission-audit.md',
       'production-safety.md',
       'recipes.md',
       'workflow.md',

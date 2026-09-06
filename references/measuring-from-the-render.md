@@ -59,6 +59,11 @@ returned exactly the window boundary — both were the band edge, not the object
 - stop the window short of any known boundary;
 - if the result lands on the window edge, treat it as invalid and re-measure with a shorter window.
 
+**Name the ink threshold, and make it tight.** A dark-red gradient band (RGB ≈ 98/17/20) passes a
+`< 150` "black" test and was read as the bottom of a black text block, misplacing the whole
+footer by 8pt. Dark ink on white should be tested at something like `< 80` on all three
+channels; if a non-black colour sits anywhere in the window, exclude it explicitly.
+
 ## Row profiling beats frame bounds for stacked text
 
 To learn where lines and sections actually sit, scan rows across the column and record the
@@ -68,6 +73,15 @@ when the glyphs do not, and a container sized for its old copy tells you nothing
 
 The profile is also the fastest way to answer "how much headroom do I have" before a move —
 the gap between the block above and the block you intend to raise.
+
+**Isolate the line before you profile it.** Two stacked lines of small type overlap vertically:
+the second line's ascenders reach up past the first line's baseline. A window drawn from the
+first line's frame top to the second line's frame top therefore contains both, and the leftmost
+ink it reports belongs to whichever glyph starts further left. On a 5.5pt label pair this read a
+1.20pt misalignment as 0.48pt — the window had picked up the top of the 月 below — and the
+"fix" derived from it left two thirds of the defect in place. Scan the row profile first, note
+the ink bands, and measure each line inside its own band with a margin of at least one glyph
+height's tenth at both ends.
 
 ## What a reviewer means by "align to X"
 
@@ -91,3 +105,13 @@ evidence. Include the before/after pair in the report:
 before  reference 229.70 / target 225.86  → -3.84pt
 after   reference 229.70 / target 229.70  → +0.00pt
 ```
+
+The commonest way this goes wrong is not a bad magnitude but a **flipped sign**. Illustrator's
+y axis increases upward while every render measurement counts downward, so "raise it" and a
+positive `dy` agree in one frame and disagree in the other. A sign error is invisible in the
+edit result — the move reports success with the magnitude you asked for — and it does not merely
+fail to fix the gap, it doubles it: a 2.88pt misalignment moved the wrong way measured 5.76pt
+afterwards. That doubling is the signature; if a residual comes back at exactly twice the
+original offset, you moved the right amount the wrong way.
+
+Only the after-measurement catches it, which is why re-measuring is a gate and not a courtesy.

@@ -31,6 +31,23 @@ within the collection that should contain it — iterate `document.rasterItems` 
 rather than pushing on through a bad reference. Wrapping every property read in a `safe()` helper
 turns that failure into readable evidence instead of an opaque host error.
 
+**UUIDs are not stable across a structural edit.** They can be positional in the file's
+serialization, so deleting objects renumbers the survivors: removing two text frames shifted a
+footer label from `21638` to `21616`, and a batch keyed on the old id failed with
+`EDIT_TARGET_NOT_FOUND`. Treat ids captured before a deletion, insertion, or reorder as spent —
+re-inspect and re-key afterwards. Within a run of pure moves and text edits they hold, which is
+why the failure is easy to miss until the one time it bites.
+
+The same warning applies to a plan written across several transactions: capture the ids in the
+transaction that uses them, not in the survey you did at the start.
+
+**A reference dies with its object, and `embed()` is a removal.** Removing a raster and placing
+its replacement leaves the old handle in every variable that held it; passing one of those
+downstream raised "Object is invalid" two phases later, far from the cause. `placedItem.embed()`
+does the same — the placed item is replaced by a new `RasterItem` and the old handle is gone.
+When an object is going to be removed or embedded, capture what you still need (its bounds, its
+size) as plain values first, and pass the values, not the handle.
+
 ## Collection scale traps
 
 `document.pageItems` enumerates EVERY nested descendant. A flyer with outlined headline

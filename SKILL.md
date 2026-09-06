@@ -44,7 +44,10 @@ JSON object for commands; keep diagnostics on stderr in wrappers.
   diagnosis. Remember that returned inspection data may enter the configured AI service context.
 - Never mutate a pristine comparison reference. Make or select a working copy.
 - Never select a document by `activeDocument`, substring, collection index, or visual
-  similarity. Bind the normalized full path and exact decoded filename.
+  similarity. Bind the normalized full path and exact decoded filename. Normalize it yourself —
+  a path carrying a `..` segment opens a **second instance of the same file**, after which edits
+  and saves land in different copies and the disk file silently reverts, with both commands
+  reporting success.
 - Prefer UUID-targeted inspection and mutation after discovery. Do not repeatedly perform full-document
   inspection merely because it is available; on large files it can dominate end-to-end latency.
 - Never rerun a timed-out mutation. It may still be executing. Run `recover`, inspect
@@ -77,6 +80,9 @@ JSON object for commands; keep diagnostics on stderr in wrappers.
 - Translate a block only after checking what already occupies the destination band. When a
   neighbouring graphic would collide, move it with the block to preserve the internal
   composition and report that you did — silently leaving it behind changes the design.
+- Treat UUIDs captured before a deletion, insertion, or reorder as spent. They can be positional
+  in the file's serialization, so a structural edit renumbers the survivors; re-inspect and re-key
+  before the next transaction.
 - Compact style inspection is **sample evidence**, not proof of one style across a whole frame.
   `styleRunMode: "sampled"` means the returned run describes one sampled character only.
   Use targeted `--detail full` when style-run boundaries matter.
@@ -218,6 +224,7 @@ The benchmark harness exists to compare global and targeted inspection reproduci
 - Fitting supplied copy, measuring capacity, size sweeps, width fitting: [fitting copy](references/fitting-copy.md)
 - Reproducing from a photo of a printed piece, and which measurement to trust: [measuring a printed reference](references/measuring-a-printed-reference.md)
 - Aligning to a visual edge, bounds that lie, pixel measurement and row profiling: [measuring from the render](references/measuring-from-the-render.md)
+- Auditing a deliverable before review, parity against an approved sibling: [pre-submission audit](references/pre-submission-audit.md)
 - Object identity, coordinates, text frames, and ES3 pitfalls: [Illustrator DOM](references/illustrator-dom.md)
 - Kinsoku, style-safe replacement, reception hours, and Japanese text: [Japanese typography](references/japanese-typography.md)
 - Live and outlined 100/100 restoration: [aspect ratio](references/aspect-ratio.md)
